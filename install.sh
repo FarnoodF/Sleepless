@@ -33,19 +33,9 @@ case "$reply" in [yY]*) ;; *) echo "Aborted."; exit 1 ;; esac
 echo "==> Building into /Applications"
 DEST=/Applications "$REPO/build.sh" /Applications
 
-# 2. Passwordless grant. Generate from the template (substitute the current user),
-#    validate syntax, then install root:wheel 0440. visudo -cf checks syntax only,
-#    so we install with explicit perms via `install`.
+# 2. Passwordless grant (delegated to grant.sh, the single source of truth).
 echo "==> Installing passwordless grant (you'll be asked for your password once)"
-TMP_SUDOERS="$(mktemp)"
-sed "s/__USER__/$USER_NAME/" "$REPO/sleepless.sudoers.template" > "$TMP_SUDOERS"
-if ! sudo visudo -cf "$TMP_SUDOERS" >/dev/null; then
-  echo "error: generated sudoers file failed validation; not installing." >&2
-  rm -f "$TMP_SUDOERS"; exit 1
-fi
-sudo install -m 0440 -o root -g wheel "$TMP_SUDOERS" "$SUDOERS_DST"
-rm -f "$TMP_SUDOERS"
-sudo visudo -c >/dev/null && echo "    sudoers OK ($SUDOERS_DST, root:wheel 0440)"
+"$REPO/grant.sh" --yes
 
 # 3. Login item.
 echo "==> Installing login item"
