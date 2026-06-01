@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#3a2470"/>
+      <stop offset="1" stop-color="#160c2c"/>
+    </linearGradient>
+    <linearGradient id="moonGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d9ccff"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#b79bff" stop-opacity="0.85"/>
+      <stop offset="0.55" stop-color="#9a78ff" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#9a78ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="moonMask">
+      <circle cx="300" cy="296" r="128" fill="#ffffff"/>
+      <circle cx="372" cy="260" r="114" fill="#000000"/>
+    </mask>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="640" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1280" height="300" fill="url(#sheen)"/>
+
+  <!-- stars -->
+  <circle cx="700" cy="120" r="3.5" fill="#ffffff" opacity="0.9"/>
+  <circle cx="880" cy="90" r="2.6" fill="#e8deff" opacity="0.8"/>
+  <circle cx="1040" cy="150" r="3.0" fill="#ffffff" opacity="0.85"/>
+  <circle cx="980" cy="220" r="2.2" fill="#cdb8ff" opacity="0.7"/>
+  <circle cx="1150" cy="110" r="2.4" fill="#ffffff" opacity="0.8"/>
+  <circle cx="610" cy="80" r="2.0" fill="#cdb8ff" opacity="0.7"/>
+
+  <!-- moon -->
+  <circle cx="300" cy="292" r="210" fill="url(#halo)"/>
+  <g mask="url(#moonMask)">
+    <rect x="150" y="150" width="320" height="320" fill="url(#moonGrad)"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="560" y="300" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="132" font-weight="800" fill="#ffffff" letter-spacing="-4">Sleepless</text>
+  <text x="566" y="364" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="40" font-weight="500" fill="#cdb8ff">Keep your Mac awake with the lid closed.</text>
+
+  <!-- feature chips -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="26" font-weight="600">
+    <rect x="566" y="410" width="232" height="56" rx="28" fill="#ffffff" fill-opacity="0.10" stroke="#b79bff" stroke-opacity="0.35"/>
+    <text x="600" y="447" fill="#ece3ff">On battery</text>
+    <rect x="818" y="410" width="330" height="56" rx="28" fill="#ffffff" fill-opacity="0.10" stroke="#b79bff" stroke-opacity="0.35"/>
+    <text x="852" y="447" fill="#ece3ff">No external display</text>
+    <rect x="566" y="482" width="424" height="56" rx="28" fill="#ffffff" fill-opacity="0.10" stroke="#b79bff" stroke-opacity="0.35"/>
+    <text x="600" y="519" fill="#ece3ff">Battery-floor auto-off</text>
+  </g>
+
+  <text x="560" y="592" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="24" font-weight="500" fill="#9a86d6">Open source &#183; MIT &#183; github.com/Aboudjem/Sleepless</text>
+</svg>
