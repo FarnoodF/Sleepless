@@ -7,12 +7,16 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_NAME="Sleepless"
+APP_NAME="Sleepless Agents"
 APP="/Applications/$APP_NAME.app"
 BUNDLE_ID="com.aboudjem.Sleepless"
 SUDOERS_DST="/etc/sudoers.d/sleepless-disablesleep"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
 USER_UID="$(id -u)"
+RESET_AGENT_SETUP=0
+if [ ! -d "$APP" ] && [ ! -d "/Applications/Sleepless.app" ]; then
+  RESET_AGENT_SETUP=1
+fi
 
 echo "Sleepless installer"
 echo "==================="
@@ -56,10 +60,16 @@ PLIST
 launchctl bootout "gui/$(id -u)/$BUNDLE_ID" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENT" 2>/dev/null || true
 
+# Reset per-user agent detector setup on clean installs so uninstall -> install
+# shows setup again instead of trusting stale hooks from a removed app.
+if [ "$RESET_AGENT_SETUP" = "1" ]; then
+  "$REPO/reset-agent-setup.sh"
+fi
+
 # Launch now.
 open "$APP"
 
 echo ""
-echo "✅ Installed. The coffee cup is in your menu bar — click it to toggle."
+echo "✅ Installed. Sleepless Agents is in your menu bar — click it to toggle."
 echo "   Turn ON, close the lid: your Mac stays awake on battery (auto-off at the floor you set)."
 echo "   To remove everything (including the grant): ./uninstall.sh"

@@ -1,13 +1,10 @@
 // Sleepless app icon generator (native, AppKit-rendered).
 //
-// Renders the SAME coffee cup the menu bar uses -- Apple's `cup.and.saucer.fill`
-// SF Symbol, drawn in white on a continuous-curvature ("squircle") Liquid-Glass
-// plate carrying the brand's indigo -> violet -> fuchsia gradient -- so the
-// Dock/Finder icon is brand-consistent with the native menu-bar glyph and reads
-// premium, not hand-rolled. The full white cup is the "caffeinated / kept awake"
-// mark; a soft aurora steam wisp rises from it (the brand signature) at larger
-// sizes only, so the small Dock/menu sizes stay clean and legible. Each iconset
-// size is rendered directly from the vector symbol (no raster downscaling).
+// Renders a simple agent/robot having coffee on a continuous-curvature ("squircle")
+// Liquid-Glass plate carrying the brand's indigo -> violet -> fuchsia gradient.
+// The Dock/Finder icon can carry the full robot-with-coffee identity; the menu bar
+// still uses a simplified monochrome template glyph so it stays legible at 16 px.
+// Each iconset size is rendered directly from vector shapes (no raster downscaling).
 //
 // Build + run:  swiftc -O -framework AppKit make-icon.swift -o /tmp/mkicon && /tmp/mkicon [outDir]
 // Then:         iconutil -c icns Sleepless.iconset -o Sleepless.icns
@@ -88,80 +85,84 @@ func renderIcon(_ S: CGFloat) -> NSBitmapImageRep {
     cg.drawRadialGradient(glow, startCenter: glowC, startRadius: 0,
                           endCenter: glowC, endRadius: plate.width * 0.44, options: [])
 
-    // Aurora steam signature: soft violet -> fuchsia wisps that CURL sideways and
-    // dissipate at rounded tips, so the mark reads as steam (never a flame) while still
-    // carrying the brand gradient. Two staggered curls at large sizes; one bolder curl
-    // at small sizes so it survives in the Dock. The white cup always leads.
-    if S >= 24 {
-        let single = S <= 64
-        // each wisp: (baseDx, lateral drift toward tip, height fraction, base width)
-        // Both wisps lean the same way (a soft draft) with different heights/widths/curl,
-        // so they read as drifting steam, not symmetric "ears".
-        let wisps: [(dx: CGFloat, drift: CGFloat, hf: CGFloat, w: CGFloat)] = single
-            ? [(-0.01, 0.13, 1.0, 0.10)]
-            : [(-0.045, 0.05, 1.0, 0.072), (0.075, 0.16, 0.78, 0.058)]
-        let baseY = plate.midY + plate.height * 0.10     // at the cup rim
-        let fullTop = plate.maxY - plate.height * 0.06
-        // faint vapor halo (well below the flame-like glow of the prior pass)
-        let halo = CGGradient(colorsSpace: cs,
-            colors: [NSColor(srgbRed: 0.93, green: 0.52, blue: 1.0, alpha: 0.20).cgColor,
-                     NSColor(srgbRed: 0.93, green: 0.52, blue: 1.0, alpha: 0).cgColor] as CFArray,
-            locations: [0, 1])!
-        let haloC = CGPoint(x: plate.midX, y: (baseY + fullTop) / 2)
-        cg.drawRadialGradient(halo, startCenter: haloC, startRadius: 0,
-                              endCenter: haloC, endRadius: plate.width * 0.16, options: [])
-        for wp in wisps {
-            let topY = baseY + (fullTop - baseY) * wp.hf
-            let x0 = plate.midX + plate.width * wp.dx
-            let steps = 30
-            func pt(_ u: CGFloat, _ side: CGFloat) -> CGPoint {
-                let y = baseY + (topY - baseY) * u
-                let curl = plate.width * wp.drift * (u * u)            // drift grows toward the tip = curl
-                let wave = plate.width * 0.028 * sin(u * .pi * 2.1)    // gentle squiggle
-                let half = (plate.width * wp.w) * pow(1 - u, 0.55) * 0.5 + plate.width * 0.004  // taper to a rounded tip
-                return CGPoint(x: x0 + curl + wave + side * half, y: y)
-            }
-            let ribbon = CGMutablePath()
-            ribbon.move(to: pt(0, -1))
-            for i in 1...steps { ribbon.addLine(to: pt(CGFloat(i)/CGFloat(steps), -1)) }
-            for i in stride(from: steps, through: 0, by: -1) { ribbon.addLine(to: pt(CGFloat(i)/CGFloat(steps), 1)) }
-            ribbon.closeSubpath()
-            cg.saveGState(); cg.addPath(ribbon); cg.clip()
-            let steam = CGGradient(colorsSpace: cs,
-                colors: [NSColor(srgbRed: 0.80, green: 0.70, blue: 1.0, alpha: 0.92).cgColor,  // bright violet
-                         NSColor(srgbRed: 0.95, green: 0.60, blue: 1.0, alpha: 0.80).cgColor,  // fuchsia
-                         NSColor(srgbRed: 1.0,  green: 0.78, blue: 1.0, alpha: 0.0).cgColor]  as CFArray, // dissipate
-                locations: [0, 0.55, 1])!
-            cg.drawLinearGradient(steam, start: CGPoint(x: x0, y: baseY),
-                                  end: CGPoint(x: x0 + plate.width * wp.drift, y: topY), options: [])
-            cg.restoreGState()
-        }
-    }
     cg.restoreGState()
 
-    // Native cup.and.saucer.fill, white, centered. The cup is the brand object so it
-    // leads; at small sizes it grows bolder (and heavier weight) so it survives the Dock.
-    let small = S <= 64
-    let cupFrac: CGFloat = small ? 0.66 : 0.58
-    let cfg = NSImage.SymbolConfiguration(pointSize: plate.width * (small ? 0.74 : 0.64),
-                                          weight: small ? .medium : .regular)
-    if let sym = NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: nil)?
-        .withSymbolConfiguration(cfg) {
-        let sz = sym.size
-        let scale = (plate.width * cupFrac) / max(sz.width, sz.height)
-        let w = sz.width * scale, h = sz.height * scale
-        let r = NSRect(x: plate.midX - w/2, y: plate.midY - h/2, width: w, height: h)
-        // soft violet chromatic drop shadow for depth (samples the plate mid-stop)
-        cg.saveGState()
-        cg.setShadow(offset: CGSize(width: 0, height: -S*0.006), blur: S*0.014,
-                     color: NSColor(srgbRed: 0.32, green: 0.12, blue: 0.50, alpha: 0.55).cgColor)
-        let tinted = NSImage(size: sz)
-        tinted.lockFocus(); NSColor.white.set()
-        sym.draw(in: NSRect(origin: .zero, size: sz))
-        NSRect(origin: .zero, size: sz).fill(using: .sourceAtop)
-        tinted.unlockFocus()
-        tinted.draw(in: r)
-        cg.restoreGState()
+    // Robot head: broad, friendly, and legible at Dock sizes.
+    let head = CGRect(x: plate.midX - plate.width * 0.27,
+                      y: plate.midY - plate.height * 0.10,
+                      width: plate.width * 0.48,
+                      height: plate.height * 0.34)
+    let corner = plate.width * 0.075
+    cg.saveGState()
+    cg.setShadow(offset: CGSize(width: 0, height: -S * 0.008), blur: S * 0.018,
+                 color: NSColor(srgbRed: 0.24, green: 0.08, blue: 0.42, alpha: 0.50).cgColor)
+    cg.addPath(CGPath(roundedRect: head, cornerWidth: corner, cornerHeight: corner, transform: nil))
+    NSColor.white.setFill()
+    cg.fillPath()
+    cg.restoreGState()
+
+    // Antenna + ears.
+    NSColor.white.withAlphaComponent(0.94).setStroke()
+    cg.setLineWidth(max(S * 0.012, 1.4))
+    cg.setLineCap(.round)
+    cg.move(to: CGPoint(x: head.midX, y: head.maxY))
+    cg.addLine(to: CGPoint(x: head.midX, y: head.maxY + plate.height * 0.09))
+    cg.strokePath()
+    cg.addEllipse(in: CGRect(x: head.midX - plate.width * 0.025,
+                             y: head.maxY + plate.height * 0.085,
+                             width: plate.width * 0.05,
+                             height: plate.width * 0.05))
+    NSColor.white.setFill()
+    cg.fillPath()
+    for dx in [-0.295, 0.215] as [CGFloat] {
+        let ear = CGRect(x: plate.midX + plate.width * dx,
+                         y: head.midY - plate.height * 0.055,
+                         width: plate.width * 0.06,
+                         height: plate.height * 0.11)
+        cg.addPath(CGPath(roundedRect: ear, cornerWidth: plate.width * 0.025, cornerHeight: plate.width * 0.025, transform: nil))
+        cg.fillPath()
+    }
+
+    // Face details are punched in with the plate's dark violet tone.
+    let face = NSColor(srgbRed: 62/255.0, green: 35/255.0, blue: 120/255.0, alpha: 1)
+    face.setFill()
+    for dx in [-0.10, 0.10] as [CGFloat] {
+        cg.addEllipse(in: CGRect(x: head.midX + plate.width * dx - plate.width * 0.028,
+                                 y: head.midY + plate.height * 0.035,
+                                 width: plate.width * 0.056,
+                                 height: plate.width * 0.056))
+        cg.fillPath()
+    }
+    cg.setStrokeColor(face.cgColor)
+    cg.setLineWidth(max(S * 0.010, 1.2))
+    cg.move(to: CGPoint(x: head.midX - plate.width * 0.075, y: head.midY - plate.height * 0.055))
+    cg.addQuadCurve(to: CGPoint(x: head.midX + plate.width * 0.075, y: head.midY - plate.height * 0.055),
+                    control: CGPoint(x: head.midX, y: head.midY - plate.height * 0.095))
+    cg.strokePath()
+
+    // Coffee cup, intentionally simple: white mug with a violet handle and soft steam.
+    let mug = CGRect(x: head.maxX - plate.width * 0.05,
+                     y: head.minY - plate.height * 0.02,
+                     width: plate.width * 0.20,
+                     height: plate.height * 0.13)
+    NSColor.white.setFill()
+    cg.addPath(CGPath(roundedRect: mug, cornerWidth: plate.width * 0.025, cornerHeight: plate.width * 0.025, transform: nil))
+    cg.fillPath()
+    cg.setStrokeColor(NSColor.white.cgColor)
+    cg.setLineWidth(max(S * 0.015, 1.6))
+    let handle = CGRect(x: mug.maxX - plate.width * 0.015,
+                        y: mug.midY - plate.height * 0.035,
+                        width: plate.width * 0.075,
+                        height: plate.height * 0.07)
+    cg.strokeEllipse(in: handle)
+    cg.setStrokeColor(NSColor.white.withAlphaComponent(0.72).cgColor)
+    cg.setLineWidth(max(S * 0.008, 1.0))
+    for dx in [0.0, 0.055] as [CGFloat] {
+        cg.move(to: CGPoint(x: mug.minX + plate.width * (0.055 + dx), y: mug.maxY + plate.height * 0.015))
+        cg.addCurve(to: CGPoint(x: mug.minX + plate.width * (0.075 + dx), y: mug.maxY + plate.height * 0.105),
+                    control1: CGPoint(x: mug.minX + plate.width * (0.02 + dx), y: mug.maxY + plate.height * 0.04),
+                    control2: CGPoint(x: mug.minX + plate.width * (0.12 + dx), y: mug.maxY + plate.height * 0.07))
+        cg.strokePath()
     }
     NSGraphicsContext.restoreGraphicsState()
     return rep

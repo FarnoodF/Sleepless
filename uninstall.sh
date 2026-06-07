@@ -3,14 +3,16 @@
 # the login item, AND the passwordless grant. Ends by PROVING the privilege is gone.
 set -uo pipefail   # not -e: we want to attempt every cleanup step even if one is absent
 
-APP_NAME="Sleepless"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_NAME="Sleepless Agents"
 APP="/Applications/$APP_NAME.app"
 BUNDLE_ID="com.aboudjem.Sleepless"
 SUDOERS_DST="/etc/sudoers.d/sleepless-disablesleep"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
+RESET_AGENT_SETUP="$SCRIPT_DIR/reset-agent-setup.sh"
 
-echo "Sleepless uninstaller"
-echo "====================="
+echo "Sleepless Agents uninstaller"
+echo "============================"
 
 # 1. Restore normal sleep BEFORE removing the grant (a reboot would also reset it to 0).
 echo "==> Restoring normal sleep (disablesleep 0)"
@@ -25,13 +27,25 @@ rm -f "$LAUNCH_AGENT"
 # 3. Remove the app.
 echo "==> Removing $APP"
 rm -rf "$APP"
+rm -rf "/Applications/Sleepless.app"
 
 # 4. Remove the passwordless grant (password required, by design — you're touching sudo).
 echo "==> Removing passwordless grant (you may be asked for your password)"
 sudo rm -f "$SUDOERS_DST"
 sudo visudo -c >/dev/null && echo "    sudoers still parses cleanly"
 
-# 5. Proof of revocation: the previously-passwordless command must now PROMPT.
+# 5. Remove Sleepless' per-user agent detector hooks/state so reinstall starts from setup.
+if [ -x "$RESET_AGENT_SETUP" ]; then
+  "$RESET_AGENT_SETUP"
+else
+  echo "==> Resetting Sleepless agent detector setup"
+  rm -rf "$HOME/.sleepless/agents"
+  rmdir "$HOME/.sleepless" 2>/dev/null || true
+  /usr/bin/defaults delete "$BUNDLE_ID" agentAutoOffEnabled 2>/dev/null || true
+  echo "    reset helper state; hook JSON cleanup unavailable ($RESET_AGENT_SETUP missing)"
+fi
+
+# 6. Proof of revocation: the previously-passwordless command must now PROMPT.
 echo "==> Verifying the grant is gone"
 sudo -k
 if sudo -n /usr/bin/pmset -a disablesleep 0 2>/dev/null; then
@@ -41,5 +55,5 @@ else
 fi
 
 echo ""
-echo "Done. Sleepless and its grant are removed. UserDefaults (the battery-floor value)"
-echo "can be cleared with: defaults delete $BUNDLE_ID 2>/dev/null || true"
+echo "Done. Sleepless Agents, its grant, login item, and agent detector setup are removed."
+echo "UserDefaults (such as the battery-floor value) can be cleared with: defaults delete $BUNDLE_ID 2>/dev/null || true"

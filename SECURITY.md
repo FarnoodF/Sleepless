@@ -1,6 +1,6 @@
 # Security Policy
 
-Sleepless asks for a narrow piece of root privilege, so it owes you a precise account
+Sleepless Agents asks for a narrow piece of root privilege, so it owes you a precise account
 of what that privilege is and why it is safe. This document is that account. Nothing
 here is hand-waved; every claim is something you can verify on your own machine.
 
@@ -12,9 +12,9 @@ acknowledgement within a few days. Coordinated disclosure is appreciated.
 
 Supported version: the latest release on the `main` branch.
 
-## What Sleepless actually does
+## What Sleepless Agents actually does
 
-Sleepless keeps a Mac awake with the lid closed by toggling an undocumented but
+Sleepless Agents keeps a Mac awake with the lid closed by toggling an undocumented but
 long-standing `pmset` setting:
 
 ```
@@ -29,13 +29,13 @@ sets the kernel's `SleepDisabled` flag, which you can observe yourself:
 pmset -g | grep SleepDisabled   # 1 = on, 0/absent = off
 ```
 
-Because it is undocumented, Apple could change or remove it in a future macOS. Sleepless
+Because it is undocumented, Apple could change or remove it in a future macOS. Sleepless Agents
 reads the live value back after every toggle, so the menu-bar state always reflects
 reality rather than assuming the command worked.
 
 ## The passwordless grant — exactly what it permits
 
-A GUI app has no terminal to type a password into, so Sleepless runs `pmset` through a
+A GUI app has no terminal to type a password into, so Sleepless Agents runs `pmset` through a
 tightly scoped `/etc/sudoers.d` drop-in. The app's one-time native setup, `install.sh`,
 and `grant.sh` all install the same rule (with your numeric UID substituted for `__UID__`),
 owned `root:wheel`, mode `0440`:
@@ -57,12 +57,12 @@ Consequences you can rely on:
 - `sudo pmset -a sleep 0`, `sudo pmset restoredefaults`, `sudo pmset -a hibernatemode 0`,
   or any other argument vector **do not match** the rule and will demand a password. The
   grant cannot be widened by appending flags.
-- Sleepless calls `sudo` with an **argv array**, not a shell string
+- Sleepless Agents calls `sudo` with an **argv array**, not a shell string
   (`Process.arguments` in `App.swift`), so there is no `/bin/sh -c`, no command
   substitution, and no word-splitting surface inside the app.
 - The ongoing passwordless grant points directly at Apple's `/usr/bin/pmset`, not at a
   helper script. The classic sudoers footgun is a _user-writable_ script that root executes
-  on every privileged action — rewrite it, get root. Sleepless avoids that: the rule itself
+  on every privileged action — rewrite it, get root. Sleepless Agents avoids that: the rule itself
   is `root:wheel 0440`, has no wildcards, and can only invoke the two `pmset` argument
   vectors above.
 - During the app's one-time native setup, the root-authenticated command is generated from
@@ -84,16 +84,33 @@ you can toggle `sudo pmset -a disablesleep 1/0` manually instead and skip the gr
 ## Reboot resets it (a safety net you can verify)
 
 `disablesleep` is a **runtime** setting. A reboot restores normal sleep — there is no way
-for Sleepless to leave your Mac permanently unable to sleep. Verify it yourself: toggle on,
+for Sleepless Agents to leave your Mac permanently unable to sleep. Verify it yourself: toggle on,
 reboot, then `pmset -g | grep SleepDisabled` should read `0`.
 
-Sleepless adds a second belt-and-suspenders: a **battery-floor auto-off** (default 15%)
+Sleepless Agents adds a second belt-and-suspenders: a **battery-floor auto-off** (default 15%)
 that flips the flag back to `0` while the Mac is awake and discharging, so a forgotten
 "on" state can't drain the battery to empty.
 
+## Agent and internet monitoring
+
+The agent-aware cutoff is local-only. Sleepless Agents looks for bounded, user-owned local signals:
+validated CLI tools, known app bundle IDs, process/session signals, and optional heartbeat
+hooks for tools that need a stronger signal. It does **not** scrape windows, read screen
+contents, request Screen Recording, use Accessibility APIs, or poll vendor cloud agents that
+have no local worker/session signal.
+
+The no-internet cutoff uses macOS network path status plus a small HTTPS reachability probe.
+It acts only after a grace period, and the feature is opt-in. These checks do not change the
+sudoers grant: the only privileged commands remain the two `pmset disablesleep` toggles above.
+
+Agent setup writes local diagnostics to
+`~/Library/Caches/com.aboudjem.Sleepless/setup-diagnostics.jsonl`. The JSON Lines log is local
+only, rotates at a small size, redacts your home path, and is meant for debugging hook setup
+failures.
+
 ## Code signing, notarization, and Gatekeeper
 
-Sleepless is **ad-hoc signed and not notarized** — it has no paid Apple Developer ID. The
+Sleepless Agents is **ad-hoc signed and not notarized** — it has no paid Apple Developer ID. The
 trust model is _read the source, build it yourself_. (Notarization is also not a malware
 guarantee: signed, notarized macOS stealers have shipped.)
 
@@ -104,9 +121,9 @@ guarantee: signed, notarized macOS stealers have shipped.)
   Open Anyway**, then confirm. Note: macOS 15 (Sequoia) **removed** the old
   right-click → Open bypass, so the System Settings path is the supported flow on macOS 15+.
 
-## Why Sleepless can't be on the Mac App Store
+## Why Sleepless Agents can't be on the Mac App Store
 
-Some people trust App Store apps more, so it is worth saying plainly: Sleepless can never
+Some people trust App Store apps more, so it is worth saying plainly: Sleepless Agents can never
 ship there, and that is a property of what it does, not an oversight.
 
 App Review **§2.4.5(v)** states apps "may not request escalation to root privileges or use
@@ -118,7 +135,7 @@ outside their container, which the `/etc/sudoers.d` drop-in does). A privileged-
 workaround does not rescue it either: a helper installed from a sandboxed app must itself be
 sandboxed, so it still cannot write `/etc/sudoers.d` or run arbitrary root commands.
 
-The practical consequence: Sleepless is **direct-download / Homebrew only**, by design. The
+The practical consequence: Sleepless Agents is **direct-download / Homebrew only**, by design. The
 verification steps below, plus building from source, are how trust is established instead.
 
 ## Verifying a download

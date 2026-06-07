@@ -4,8 +4,8 @@
 <dict>
     <key>CFBundleExecutable</key>          <string>Sleepless</string>
     <key>CFBundleIdentifier</key>          <string>com.aboudjem.Sleepless</string>
-    <key>CFBundleName</key>                <string>Sleepless</string>
-    <key>CFBundleDisplayName</key>         <string>Sleepless</string>
+    <key>CFBundleName</key>                <string>Sleepless Agents</string>
+    <key>CFBundleDisplayName</key>         <string>Sleepless Agents</string>
     <key>CFBundlePackageType</key>         <string>APPL</string>
     <key>CFBundleIconFile</key>            <string>Sleepless</string>
     <key>CFBundleShortVersionString</key>  <string>1.2.7</string>

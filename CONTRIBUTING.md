@@ -23,8 +23,8 @@ No Xcode project — just the Command Line Tools:
 ```sh
 git clone https://github.com/Aboudjem/Sleepless.git
 cd Sleepless
-./build.sh            # builds ./build/Sleepless.app, ad-hoc signed
-open build/Sleepless.app
+./build.sh            # builds ./build/Sleepless Agents.app, ad-hoc signed
+open "build/Sleepless Agents.app"
 ```
 
 `./install.sh` additionally installs the passwordless grant + login item (it prints exactly

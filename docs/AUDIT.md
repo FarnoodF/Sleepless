@@ -10,14 +10,15 @@ machine.
 
 ## Read it in about ten minutes
 
-The whole app is one file. To satisfy yourself it does what it claims and nothing else:
+The app is a small set of Swift files. To satisfy yourself it does what it claims and nothing else, read:
 
-| Read                                                                                      | What you are checking                                                                                                                                                                                                                                                   |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`App.swift`](../App.swift)                                                               | Steady-state privilege is only `sudo -n /usr/bin/pmset -a disablesleep 0/1` (`setDisableSleep`). The one-time native setup generates the sudoers drop-in from binary constants, validates it with `visudo`, and does not run bundled scripts as root. No network calls. |
-| [`sleepless.sudoers.template`](../sleepless.sudoers.template) / [`grant.sh`](../grant.sh) | Manual setup path: the passwordless grant permits exactly those two fully-specified commands for the local numeric UID (`#501`-style), has no wildcards, and installs `root:wheel 0440`.                                                                                |
-| [`build.sh`](../build.sh)                                                                 | `swiftc` + a hand-assembled, ad-hoc-signed bundle with hardened runtime enabled. No downloaded blobs, no install-time scripts baked into the binary.                                                                                                                    |
-| [`uninstall.sh`](../uninstall.sh)                                                         | Removes the app, the login item, and the sudoers drop-in, then proves `sudo -n pmset …` prompts again.                                                                                                                                                                  |
+- [`App.swift`](../App.swift) and [`PowerController.swift`](../PowerController.swift): steady-state privilege is only `sudo -n /usr/bin/pmset -a disablesleep 0/1` (`setDisableSleep`). The one-time native setup generates the sudoers drop-in from binary constants, validates it with `visudo`, and does not run bundled scripts as root.
+- [`AgentMonitor.swift`](../AgentMonitor.swift): agent detection is bounded and local-only: CLI validation, known app bundle IDs, user-owned processes, and optional heartbeat files. No UI scraping, Screen Recording, Accessibility, or cloud-agent polling.
+- [`AppLogger.swift`](../AppLogger.swift): setup diagnostics are written only to a small rotating JSON Lines cache under `~/Library/Caches/com.aboudjem.Sleepless/`.
+- [`ConnectivityMonitor.swift`](../ConnectivityMonitor.swift): no-internet auto-off uses macOS network path status plus a lightweight HTTPS reachability probe and does not affect the privileged grant.
+- [`sleepless.sudoers.template`](../sleepless.sudoers.template) and [`grant.sh`](../grant.sh): manual setup path: the passwordless grant permits exactly those two fully-specified commands for the local numeric UID (`#501`-style), has no wildcards, and installs `root:wheel 0440`.
+- [`build.sh`](../build.sh): `swiftc` + a hand-assembled, ad-hoc-signed bundle with hardened runtime enabled. No downloaded blobs, no install-time scripts baked into the binary.
+- [`uninstall.sh`](../uninstall.sh): removes the app, the login item, and the sudoers drop-in, then proves `sudo -n pmset ...` prompts again.
 
 The single privileged file on your system is `/etc/sudoers.d/sleepless-disablesleep`. Read
 it, and `sudo rm` it any time to revoke everything.
@@ -61,11 +62,13 @@ cd Sleepless && git checkout v<version>
 
 # Rebuild the executable with the release's deployment target.
 swiftc -O -parse-as-library -target arm64-apple-macos13.0 \
-  -framework AppKit -framework ServiceManagement App.swift -o /tmp/Sleepless-rebuilt
+  -framework AppKit -framework ServiceManagement -framework Network \
+  ShellRunner.swift PowerController.swift AgentMonitor.swift ConnectivityMonitor.swift App.swift \
+  -o /tmp/Sleepless-rebuilt
 
 # Unzip the release and compare the Mach-O inside the bundle.
 ditto -x -k Sleepless-<version>.zip /tmp/rel
-shasum -a 256 /tmp/Sleepless-rebuilt /tmp/rel/Sleepless.app/Contents/MacOS/Sleepless
+shasum -a 256 /tmp/Sleepless-rebuilt "/tmp/rel/Sleepless Agents.app/Contents/MacOS/Sleepless"
 ```
 
 Caveats, stated honestly:
@@ -98,7 +101,7 @@ Note: ad-hoc-signed, unnotarized binaries draw more _heuristic_ flags than notar
 read any detection in context. A clean result is reassuring, not absolute; pair it with the
 attestation above.
 
-**Public VirusTotal report (v1.1.0):** https://www.virustotal.com/gui/file/30a43590629b6a3cd2e1610c249c137c4b235a5f319ce8d8a9e866c1fd914cde
+**Public VirusTotal report (v1.1.0):** [VirusTotal permalink](https://www.virustotal.com/gui/file/30a43590629b6a3cd2e1610c249c137c4b235a5f319ce8d8a9e866c1fd914cde)
 
 That is the permalink for the v1.1.0 zip (the SHA-256 matches `SHA256SUMS`). It goes live once the file is submitted to VirusTotal. Browser submission requires a one-time reCAPTCHA, so submit it from your browser (drag the zip onto virustotal.com) or with the API.
 
@@ -115,11 +118,11 @@ xcrun notarytool store-credentials "notarytool-password" \
 
 # Re-sign with a Developer ID cert + hardened runtime + secure timestamp.
 codesign --force --options runtime --timestamp \
-  --sign "Developer ID Application: <Name> (<TeamID>)" Sleepless.app
+  --sign "Developer ID Application: <Name> (<TeamID>)" "Sleepless Agents.app"
 
-ditto -c -k --keepParent Sleepless.app Sleepless.zip
+ditto -c -k --keepParent "Sleepless Agents.app" Sleepless.zip
 xcrun notarytool submit Sleepless.zip --keychain-profile "notarytool-password" --wait
-xcrun stapler staple Sleepless.app
+xcrun stapler staple "Sleepless Agents.app"
 ```
 
 Prerequisite: [Apple Developer Program, $99/yr](https://developer.apple.com/programs/whats-included/),
