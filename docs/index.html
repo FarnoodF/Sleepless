@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sleepless: keep your Mac awake with the lid closed</title>
-<meta name="description" content="Sleepless keeps your MacBook awake with the lid (the laptop flap) closed, on battery, with no external display. A native menu-bar app using pmset disablesleep, with an auto-off timer and a battery-floor cutoff. Open source, MIT.">
+<title>Sleepless Agents: keep your Mac awake with the lid closed</title>
+<meta name="description" content="Sleepless Agents keeps your MacBook awake with the lid (the laptop flap) closed, on battery, with no external display. A native menu-bar app using pmset disablesleep, with an auto-off timer and a battery-floor cutoff. Open source, MIT.">
 <link rel="canonical" href="https://aboudjem.github.io/Sleepless/">
 <meta name="theme-color" content="#0A0A14">
 
 <meta property="og:type" content="website">
-<meta property="og:title" content="Sleepless: keep your Mac awake with the lid closed">
+<meta property="og:title" content="Sleepless Agents: keep your Mac awake with the lid closed">
 <meta property="og:description" content="Native macOS menu-bar app that keeps your MacBook awake lid-closed, on battery, no external display. pmset disablesleep, done safely. Open source, MIT.">
 <meta property="og:url" content="https://aboudjem.github.io/Sleepless/">
 <meta property="og:image" content="https://aboudjem.github.io/Sleepless/og.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Sleepless: keep your Mac awake with the lid closed">
+<meta name="twitter:title" content="Sleepless Agents: keep your Mac awake with the lid closed">
 <meta name="twitter:description" content="Native macOS menu-bar app. Lid closed, on battery, no external display. pmset disablesleep, done safely. Open source, MIT.">
 <meta name="twitter:image" content="https://aboudjem.github.io/Sleepless/og.png">
 
@@ -29,7 +29,7 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Sleepless",
+  "name": "Sleepless Agents",
   "operatingSystem": "macOS 26 (Apple Silicon)",
   "applicationCategory": "UtilitiesApplication",
   "description": "A native macOS menu-bar app that keeps your MacBook awake with the lid closed, on battery, with no external display, using pmset disablesleep, with an auto-off timer and a battery-floor cutoff.",
@@ -44,7 +44,7 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    {"@type":"Question","name":"How do I keep my MacBook awake with the lid closed without a monitor?","acceptedAnswer":{"@type":"Answer","text":"Install Sleepless, click the coffee cup in the menu bar, flip the switch on, and close the lid (the laptop screen, also called the flap). It keeps the Mac awake on battery with no external display, using pmset disablesleep. No dummy HDMI plug or clamshell adapter is needed."}},
+    {"@type":"Question","name":"How do I keep my MacBook awake with the lid closed without a monitor?","acceptedAnswer":{"@type":"Answer","text":"Install Sleepless Agents, click the robot in the menu bar, flip the switch on, and close the lid (the laptop screen, also called the flap). It keeps the Mac awake on battery with no external display, using pmset disablesleep. No dummy HDMI plug or clamshell adapter is needed."}},
     {"@type":"Question","name":"Why does my MacBook sleep when I close the lid even with Amphetamine or KeepingYouAwake?","acceptedAnswer":{"@type":"Answer","text":"Those tools are built on macOS power assertions, which stop the idle timer but cannot override the hardware lid-close trigger. KeepingYouAwake wraps caffeinate, which its maintainer confirms cannot do lid-close. pmset disablesleep, which Sleepless uses, is a lower-level setting that can."}},
     {"@type":"Question","name":"Does pmset disablesleep still work on Apple Silicon?","acceptedAnswer":{"@type":"Answer","text":"Yes. pmset -a disablesleep 1 sets the kernel's SleepDisabled flag on Apple Silicon, confirmed firsthand on macOS 26.3, which keeps a MacBook awake with the lid closed on battery. Apple does not officially document the setting, so verify it with pmset -g | grep SleepDisabled. Most claims that it stopped working actually describe caffeinate, a different mechanism."}},
     {"@type":"Question","name":"Do I need a dummy HDMI display plug to use clamshell mode?","acceptedAnswer":{"@type":"Answer","text":"No. Apple's official clamshell mode needs external power and a display, but Sleepless keeps the Mac awake with the lid closed on battery alone, with no display and no HDMI dongle."}}
@@ -288,7 +288,7 @@
 
 <nav class="nav" id="nav">
   <div class="nav-in">
-    <a class="brand" href="#top"><img src="icon.png" alt="">Sleepless</a>
+    <a class="brand" href="#top"><img src="icon.png" alt="">Sleepless Agents</a>
     <div class="nav-links">
       <a href="#why">How it works</a>
       <a href="#trust">Security</a>
@@ -302,9 +302,9 @@
 <header id="top">
   <div class="wrap hero">
     <div class="hero-copy">
-      <img class="hero-icon" src="icon.png" alt="Sleepless app icon, a coffee cup">
+      <img class="hero-icon" src="icon.png" alt="Sleepless Agents app icon, a robot face">
       <h1>Keep your Mac awake.<br><span class="grad">Lid closed.</span></h1>
-      <p class="lead">Sleepless keeps your MacBook awake with the lid closed, on battery, with no external display. One native menu-bar switch, with an auto-off timer and a battery-floor cutoff so you never drain it flat.</p>
+      <p class="lead">Sleepless Agents keeps your MacBook awake with the lid closed, on battery, with no external display. One native menu-bar switch, with an auto-off timer and a battery-floor cutoff so you never drain it flat.</p>
       <div class="cta">
         <a class="btn btn-primary" href="https://github.com/Aboudjem/Sleepless/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Download for macOS</a>
         <a class="btn btn-ghost" href="https://github.com/Aboudjem/Sleepless">View source on GitHub</a>
@@ -375,7 +375,7 @@
     <div class="specs">
       <div class="spec glass wide">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="16" cy="12" r="3"/></svg></div>
-        <h3>One switch</h3><p>Click the coffee cup, flip the toggle. Empty cup is off, full cup is awake, full cup with a dot is awake on battery. The menu-bar glyph never lies about the real state.</p>
+        <h3>One switch</h3><p>Click the robot, flip the toggle. Sleepy eyes are off, open eyes are awake, and the dot means awake on battery. The menu-bar glyph never lies about the real state.</p>
       </div>
       <div class="spec glass">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 2h6"/></svg></div>
@@ -395,10 +395,10 @@
       </div>
       <div class="spec glass">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4 9 15M20 4l-7 16-3-7-7-3 17-6Z"/></svg></div>
-        <h3>Tiny and native</h3><p>One AppKit file with SF Symbols. No Dock icon, no background daemon, no kext, no dependencies.</p>
+        <h3>Tiny and native</h3><p>One AppKit file with a vector menu-bar glyph. No Dock icon, no background daemon, no kext, no dependencies.</p>
       </div>
     </div>
-    <p class="glyph-note"><b>Menu-bar glyph:</b> empty cup = off · full cup = awake · full cup + dot = awake on battery (auto-off live).</p>
+    <p class="glyph-note"><b>Menu-bar glyph:</b> sleepy robot = off · awake robot = awake · awake robot + dot = awake on battery (auto-off live).</p>
   </div>
 </section>
 
@@ -427,7 +427,7 @@
     <h2 class="sec">Sleepless vs the alternatives</h2>
     <div class="table-wrap glass">
       <table>
-        <thead><tr><th></th><th class="me"><span class="me-h"><img src="icon.png" alt="">Sleepless</span></th><th>Amphetamine</th><th>KeepingYouAwake</th><th>caffeinate</th></tr></thead>
+        <thead><tr><th></th><th class="me"><span class="me-h"><img src="icon.png" alt="">Sleepless Agents</span></th><th>Amphetamine</th><th>KeepingYouAwake</th><th>caffeinate</th></tr></thead>
         <tbody>
           <tr><td>Awake, lid closed, no monitor</td><td class="me yes">Yes ¹</td><td class="warn">Flaky ²</td><td class="no">No ³</td><td class="no">No</td></tr>
           <tr><td>On battery</td><td class="me yes">Yes</td><td class="yes">Yes</td><td>Lid open</td><td class="warn">Partial ⁴</td></tr>
@@ -446,7 +446,7 @@
   <div class="wrap reveal">
     <p class="eyebrow">Questions</p>
     <h2 class="sec">FAQ</h2>
-    <details><summary>How do I keep my MacBook awake with the lid closed without a monitor?</summary><p>Install Sleepless, click the coffee cup in the menu bar, flip the switch on, and close the lid (the laptop screen, also called the flap). It keeps the Mac awake on battery with no external display, using <code>pmset disablesleep</code>. No dummy HDMI plug or clamshell adapter is needed.</p></details>
+    <details><summary>How do I keep my MacBook awake with the lid closed without a monitor?</summary><p>Install Sleepless Agents, click the robot in the menu bar, flip the switch on, and close the lid (the laptop screen, also called the flap). It keeps the Mac awake on battery with no external display, using <code>pmset disablesleep</code>. No dummy HDMI plug or clamshell adapter is needed.</p></details>
     <details><summary>Why does my MacBook sleep when I close the lid even with Amphetamine or KeepingYouAwake?</summary><p>Those tools are built on macOS power assertions, which stop the idle timer but cannot override the hardware lid-close trigger. KeepingYouAwake wraps <code>caffeinate</code>, which its maintainer confirms cannot do lid-close. <code>pmset disablesleep</code>, which Sleepless uses, is a lower-level setting that can.</p></details>
     <details><summary>Does pmset disablesleep still work on Apple Silicon (M1/M2/M3)?</summary><p>Yes. <code>pmset -a disablesleep 1</code> sets the kernel's <code>SleepDisabled</code> flag on Apple Silicon, confirmed firsthand on macOS 26.3, which keeps a MacBook awake with the lid closed on battery. Apple does not officially document the setting, so verify it with <code>pmset -g | grep SleepDisabled</code>. Most claims that it stopped working describe <code>caffeinate</code>, a different mechanism.</p></details>
     <details><summary>Is it safe to run a MacBook with the lid closed? Will it overheat or drain the battery?</summary><p>It is safe for light, unattended work like downloads, syncs, or a hotspot. Heavy sustained load with the lid fully closed reduces airflow, so use judgement there. Sleepless turns itself off at the floor you set and in Low Power Mode, and the auto-off timer caps how long it stays on.</p></details>
@@ -458,7 +458,7 @@
 <section class="band">
   <div class="wrap reveal">
     <div class="band-card glass">
-      <img src="icon.png" alt="Sleepless app icon">
+      <img src="icon.png" alt="Sleepless Agents app icon">
       <h2 class="sec">Keep it awake in two minutes</h2>
       <p class="lead">Install with Homebrew, or build it from source and read every line first.</p>
       <div class="row">

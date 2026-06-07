@@ -42,11 +42,11 @@ jobs:
           set -euo pipefail
           # Build the full bundle (conservative target so it works on the runner's SDK).
           TARGET="arm64-apple-macos13.0" ./build.sh "$PWD/dist"
-          ls -la "dist/Sleepless.app/Contents" "dist/Sleepless.app/Contents/MacOS"
+          ls -la "dist/Sleepless Agents.app/Contents" "dist/Sleepless Agents.app/Contents/MacOS"
 
       - name: Upload app artifact
         uses: actions/upload-artifact@v4
         with:
           name: Sleepless-app
-          path: dist/Sleepless.app
+          path: dist/Sleepless Agents.app
           if-no-files-found: error

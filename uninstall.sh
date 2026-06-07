@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# uninstall.sh — completely back Sleepless out: restore normal sleep, remove the app,
+# uninstall.sh — completely back Sleepless Agents out: restore normal sleep, remove the app,
 # the login item, AND the passwordless grant. Ends by PROVING the privilege is gone.
 set -uo pipefail   # not -e: we want to attempt every cleanup step even if one is absent
 
-APP_NAME="Sleepless"
+APP_NAME="Sleepless Agents"
 APP="/Applications/$APP_NAME.app"
 BUNDLE_ID="com.aboudjem.Sleepless"
 SUDOERS_DST="/etc/sudoers.d/sleepless-disablesleep"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
 
-echo "Sleepless uninstaller"
-echo "====================="
+echo "Sleepless Agents uninstaller"
+echo "============================"
 
 # 1. Restore normal sleep BEFORE removing the grant (a reboot would also reset it to 0).
 echo "==> Restoring normal sleep (disablesleep 0)"
@@ -25,6 +25,7 @@ rm -f "$LAUNCH_AGENT"
 # 3. Remove the app.
 echo "==> Removing $APP"
 rm -rf "$APP"
+rm -rf "/Applications/Sleepless.app"
 
 # 4. Remove the passwordless grant (password required, by design — you're touching sudo).
 echo "==> Removing passwordless grant (you may be asked for your password)"
@@ -41,5 +42,5 @@ else
 fi
 
 echo ""
-echo "Done. Sleepless and its grant are removed. UserDefaults (the battery-floor value)"
+echo "Done. Sleepless Agents and its grant are removed. UserDefaults (the battery-floor value)"
 echo "can be cleared with: defaults delete $BUNDLE_ID 2>/dev/null || true"

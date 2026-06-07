@@ -12,7 +12,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.gif">
     <source media="(prefers-color-scheme: light)" srcset="assets/hero-light.gif">
-    <img alt="Sleepless: keep your Mac awake with the lid closed" src="assets/hero-light.gif" width="780">
+    <img alt="Sleepless Agents: keep your Mac awake with the lid closed" src="assets/hero-light.gif" width="780">
   </picture>
 </p>
 
@@ -47,7 +47,7 @@
 
 ```sh
 brew install --cask aboudjem/tap/sleepless
-/Applications/Sleepless.app/Contents/Resources/grant.sh   # one-time passwordless grant
+/Applications/Sleepless\ Agents.app/Contents/Resources/grant.sh   # one-time passwordless grant
 ```
 
 | Other ways | |
@@ -55,13 +55,13 @@ brew install --cask aboudjem/tap/sleepless
 | **Download** | Grab the [latest release](https://github.com/Aboudjem/Sleepless/releases/latest), unzip to `/Applications`, then approve it in **System Settings → Privacy & Security → Open Anyway** (it is ad-hoc signed). |
 | **Build from source** | `git clone https://github.com/Aboudjem/Sleepless.git && cd Sleepless && ./install.sh` (no Gatekeeper prompt). |
 
-Then click the cup in the menu bar, flip the switch, and close the lid.
+Then click the robot in the menu bar, flip the switch, and close the lid.
 
 ## Features
 
 | | | |
 |---|---|---|
-| ☕ | **One switch** | Click the menu-bar cup, flip the toggle. |
+| 🤖 | **One switch** | Click the menu-bar robot, flip the toggle. |
 | ⏲️ | **Auto-off timer** | 1h or 2h with a live countdown, then off. |
 | 🔋 | **Battery floor** | Auto-off at 5–50% on battery (default 15%). |
 | 🪫 | **Low Power Mode** | Steps aside when LPM is on, on battery. |
@@ -69,11 +69,11 @@ Then click the cup in the menu bar, flip the switch, and close the lid.
 | 🚀 | **Launch at login** | Optional, off by default, always starts idle. |
 | 🪶 | **Tiny + native** | One AppKit file. No Dock icon, daemon, or kext. |
 
-**Menu-bar glyph:** empty cup = off · full cup = awake · full cup + dot = awake on battery (auto-off live).
+**Menu-bar glyph:** sleepy robot = off · awake robot = awake · awake robot + dot = awake on battery (auto-off live).
 
 ## Sleepless vs the alternatives
 
-| | **Sleepless** | Amphetamine | KeepingYouAwake | `caffeinate` |
+| | **Sleepless Agents** | Amphetamine | KeepingYouAwake | `caffeinate` |
 |---|:---:|:---:|:---:|:---:|
 | Awake, lid closed, no monitor | ✅ ¹ | ⚠️ ² | ❌ ³ | ❌ |
 | On battery | ✅ | ✅ | ✅ lid open | ⚠️ ⁴ |

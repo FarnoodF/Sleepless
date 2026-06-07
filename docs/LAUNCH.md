@@ -123,10 +123,10 @@ fresh launch window.
 - **When:** schedule for **12:01am Pacific**; for a dev tool, a weekend (esp. Sunday) is a
   known lower-competition slot. Prime ~300–400 warm people beforehand; PH amplifies momentum,
   it does not create it. "Launched" is not "Featured" (PH curates the homepage).
-- **Name:** Sleepless
+- **Name:** Sleepless Agents
 - **Tagline (≤60 chars):** `Keep your Mac awake with the lid closed`
 - **Assets:** gallery images **1270×760**, thumbnail **240×240** (reuse the violet brand +
-  coffee cup; `assets/social-preview.png` is a good base), a short demo (use `assets/demo.gif`).
+  robot mark; `assets/social-preview.png` is a good base), a short demo (use `assets/demo.gif`).
 - **Topics:** Mac, Developer Tools, Productivity, Open Source.
 - **First maker comment:**
 
