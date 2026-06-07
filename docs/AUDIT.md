@@ -65,7 +65,7 @@ swiftc -O -parse-as-library -target arm64-apple-macos13.0 \
 
 # Unzip the release and compare the Mach-O inside the bundle.
 ditto -x -k Sleepless-<version>.zip /tmp/rel
-shasum -a 256 /tmp/Sleepless-rebuilt /tmp/rel/Sleepless.app/Contents/MacOS/Sleepless
+shasum -a 256 /tmp/Sleepless-rebuilt "/tmp/rel/Sleepless Agents.app/Contents/MacOS/Sleepless"
 ```
 
 Caveats, stated honestly:
@@ -115,11 +115,11 @@ xcrun notarytool store-credentials "notarytool-password" \
 
 # Re-sign with a Developer ID cert + hardened runtime + secure timestamp.
 codesign --force --options runtime --timestamp \
-  --sign "Developer ID Application: <Name> (<TeamID>)" Sleepless.app
+  --sign "Developer ID Application: <Name> (<TeamID>)" "Sleepless Agents.app"
 
-ditto -c -k --keepParent Sleepless.app Sleepless.zip
+ditto -c -k --keepParent "Sleepless Agents.app" Sleepless.zip
 xcrun notarytool submit Sleepless.zip --keychain-profile "notarytool-password" --wait
-xcrun stapler staple Sleepless.app
+xcrun stapler staple "Sleepless Agents.app"
 ```
 
 Prerequisite: [Apple Developer Program, $99/yr](https://developer.apple.com/programs/whats-included/),

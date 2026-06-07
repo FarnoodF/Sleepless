@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — build Sleepless, install it to /Applications, add the passwordless
+# install.sh — build Sleepless Agents, install it to /Applications, add the passwordless
 # grant that lets it toggle lid-close sleep, and (optionally) start it at login.
 #
 # This is the ONLY script that touches sudo. It tells you exactly what it will write
@@ -7,15 +7,15 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_NAME="Sleepless"
+APP_NAME="Sleepless Agents"
 APP="/Applications/$APP_NAME.app"
 BUNDLE_ID="com.aboudjem.Sleepless"
 SUDOERS_DST="/etc/sudoers.d/sleepless-disablesleep"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
 USER_NAME="$(id -un)"
 
-echo "Sleepless installer"
-echo "==================="
+echo "Sleepless Agents installer"
+echo "==========================="
 echo "This will:"
 echo "  1. Build $APP_NAME.app and copy it to /Applications."
 echo "  2. Install a passwordless sudo grant at $SUDOERS_DST so the app can flip"
@@ -60,6 +60,6 @@ launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENT" 2>/dev/null || true
 open "$APP"
 
 echo ""
-echo "✅ Installed. The coffee cup is in your menu bar — click it to toggle."
+echo "✅ Installed. Sleepless Agents is in your menu bar — click it to toggle."
 echo "   Turn ON, close the lid: your Mac stays awake on battery (auto-off at the floor you set)."
 echo "   To remove everything (including the grant): ./uninstall.sh"

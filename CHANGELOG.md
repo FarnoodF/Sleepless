@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Renamed the app to Sleepless Agents and updated the app/menu-bar identity to a
+  robot mark with sleepy, awake, and battery-aware states.
+
 ## [1.2.7] - 2026-06-03
 
 ### Changed

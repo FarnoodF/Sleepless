@@ -1,4 +1,4 @@
-// App.swift. Sleepless: a standalone menu-bar toggle that keeps the Mac running
+// App.swift. Sleepless Agents: a standalone menu-bar toggle that keeps the Mac running
 // with the lid closed (on battery, no external display) via `pmset disablesleep`.
 //
 // Mechanism (verified live on this machine; disablesleep is UNDOCUMENTED in
@@ -11,14 +11,15 @@
 // disablesleep is runtime-only and resets to 0 on reboot, and that reset is a
 // deliberate safety feature; the app does NOT auto re-arm.
 //
-// UI: clicking the menu-bar coffee cup opens a small native popover with an NSSwitch
+// UI: clicking the menu-bar agent glyph opens a small native popover with an NSSwitch
 // toggle (the System-Settings control), a state caption, an auto-off timer, the
 // battery-floor slider, a Launch-at-login switch, and Quit. The menu-bar glyph also
 // shows state at a glance.
 //
-// The coffee-cup metaphor is literal: an EMPTY cup means the Mac sleeps normally, a
-// FULL cup means it is being kept awake (caffeinated), and a full cup with a small
-// dot means it is awake on battery with the auto-off safety net live.
+// The menu-bar mark is a tiny robot whose eyes read at a glance: asleep (gently closed
+// eyes) means the Mac sleeps normally, awake (open eyes) means it is being kept awake,
+// and an awake robot with a small dot means it is awake on battery with the auto-off
+// safety net live.
 //
 // Three small, fail-safe features layer on top, none of which adds a daemon or
 // persists OS state (so "reboot resets it" still holds):
@@ -27,7 +28,7 @@
 //   2. Launch at login (SMAppService.mainApp) — OFF by default. The app always
 //      launches reading the TRUE system state, so a login launch can never
 //      re-enable disablesleep on its own.
-//   3. Low-Power-Mode auto-off — on battery, if Low Power Mode is on, Sleepless
+//   3. Low-Power-Mode auto-off — on battery, if Low Power Mode is on, Sleepless Agents
 //      turns itself off. Same shape as the battery floor, evaluated on the same tick.
 //
 // Build (mirrors Nexus.app): Command Line Tools `swiftc`, NO Xcode project.
@@ -45,49 +46,84 @@ private let floorKey = "batteryFloorPercent"
 private let floorDefault = 15
 private let floorMin = 5
 private let floorMax = 50
+private let appDisplayName = "Sleepless Agents"
 
-// MARK: - Menu-bar coffee glyph (native SF Symbols, MONOCHROME template — state by SHAPE)
+// MARK: - Menu-bar robot glyph (hand-drawn MONOCHROME template — state by EXPRESSION)
 // macOS convention: a menu-bar extra is a template image (no colour) so it adapts to light/dark
-// bars and inverts on highlight. State is read from the SILHOUETTE, not colour. The old
-// empty-vs-filled cups looked near-identical at 16 px, so we switch the silhouette dramatically
-// with steam (a hot cup = awake):
-//   OFF   (sleeps normally)        = cup.and.saucer            cup resting on its saucer, NO steam (cold/asleep)
-//   ON    (kept awake, on power)   = cup.and.heat.waves.fill   hot cup with rising steam (awake)
-//   ARMED (kept awake, on battery) = cup.and.heat.waves.fill + a small dot (awake, safety net live)
-// The no-steam → steam change reads instantly even at 16 px; the armed dot is the only extra
-// mark. All template (monochrome) — SF Symbols only, no hand-drawn paths.
+// bars and inverts on highlight. We draw a BOLD, FILLED robot silhouette (a solid head that fills
+// the bar height, with negative-space eyes + smile + little side ears) so it stays clear and
+// legible at menu-bar size. The FACE communicates state, matching the app icon's robot identity:
+//   OFF   (sleeps normally)        = robot asleep, gently closed eyes
+//   ON    (kept awake, on power)   = robot awake, open round eyes
+//   ARMED (kept awake, on battery) = awake robot + a small dot (auto-off safety net live)
+// Drawn from vectors (not SF Symbols, which have no robot glyph) so it re-renders crisply at the
+// menu bar's backing scale.
 enum SleepGlyph {
     case off
     case on
     case armed
 }
 
-private func makeCupGlyph(_ glyph: SleepGlyph) -> NSImage {
-    let cfg = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular).applying(.init(scale: .medium))
-    let name = (glyph == .off) ? "cup.and.saucer" : "cup.and.heat.waves.fill"
-    let base = NSImage(systemSymbolName: name, accessibilityDescription: "Sleepless")?
-        .withSymbolConfiguration(cfg)
-        ?? NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "Sleepless")
-        ?? NSImage()
+private func makeRobotGlyph(_ glyph: SleepGlyph) -> NSImage {
+    let asleep = (glyph == .off)
+    let showDot = (glyph == .armed)
+    let W: CGFloat = 19
+    let H: CGFloat = 17
 
-    guard glyph == .armed else {
-        base.isTemplate = true
-        return base
+    func crescent(_ cx: CGFloat, _ cy: CGFloat, halfW: CGFloat, thick: CGFloat) -> CGPath {
+        let p = CGMutablePath()
+        let l = CGPoint(x: cx - halfW, y: cy)
+        let r = CGPoint(x: cx + halfW, y: cy)
+        p.move(to: l)
+        p.addQuadCurve(to: r, control: CGPoint(x: cx, y: cy - thick))
+        p.addQuadCurve(to: l, control: CGPoint(x: cx, y: cy))
+        p.closeSubpath()
+        return p
     }
-    // ARMED: full steaming cup + a small filled dot top-right (the "auto-off safety net is live"
-    // mark). Drawn in template black so it tints + inverts with the menu bar exactly like the cup.
-    let size = base.size
-    guard size.width > 0, size.height > 0 else { base.isTemplate = true; return base }
-    let composed = NSImage(size: size)
-    composed.lockFocus()
-    base.draw(in: NSRect(origin: .zero, size: size))
-    let d = max(size.height * 0.26, 4)
-    let dot = NSBezierPath(ovalIn: NSRect(x: size.width - d, y: size.height - d, width: d, height: d))
-    NSColor.black.setFill()
-    dot.fill()
-    composed.unlockFocus()
-    composed.isTemplate = true
-    return composed
+
+    let img = NSImage(size: NSSize(width: W, height: H), flipped: false) { _ in
+        guard let cg = NSGraphicsContext.current?.cgContext else { return true }
+        cg.setFillColor(NSColor.black.cgColor)
+
+        let headW: CGFloat = 13.0, headH: CGFloat = 13.0
+        let head = CGRect(x: (W - headW) / 2, y: (H - headH) / 2 - 0.2, width: headW, height: headH)
+        let corner = headW * 0.32
+        let midX = head.midX
+
+        let earW: CGFloat = 2.0, earH: CGFloat = 5.2
+        func earRect(_ sign: CGFloat) -> CGRect {
+            let ex = sign < 0 ? head.minX - earW * 0.55 : head.maxX - earW * 0.45
+            return CGRect(x: ex, y: head.midY - earH / 2, width: earW, height: earH)
+        }
+        for sign in [-1.0, 1.0] as [CGFloat] {
+            cg.addPath(CGPath(roundedRect: earRect(sign), cornerWidth: earW / 2, cornerHeight: earW / 2, transform: nil))
+        }
+        cg.fillPath()
+
+        let p = CGMutablePath()
+        p.addPath(CGPath(roundedRect: head, cornerWidth: corner, cornerHeight: corner, transform: nil))
+        let eyeDX: CGFloat = 2.9
+        let eyeY = head.midY + 1.0
+        if asleep {
+            for s in [-eyeDX, eyeDX] { p.addPath(crescent(midX + s, eyeY + 0.3, halfW: 1.9, thick: 1.1)) }
+        } else {
+            let r: CGFloat = 1.85
+            for s in [-eyeDX, eyeDX] {
+                p.addEllipse(in: CGRect(x: midX + s - r, y: eyeY - r, width: r * 2, height: r * 2))
+            }
+        }
+        p.addPath(crescent(midX, head.midY - 2.6, halfW: 2.7, thick: 1.05))
+        cg.addPath(p)
+        cg.fillPath(using: .evenOdd)
+
+        if showDot {
+            let d: CGFloat = 3.0
+            cg.fillEllipse(in: CGRect(x: W - d - 0.2, y: H - d - 0.2, width: d, height: d))
+        }
+        return true
+    }
+    img.isTemplate = true
+    return img
 }
 
 // Flipped container so popover content lays out top-down with simple frames.
@@ -141,15 +177,15 @@ private final class CardView: NSView {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var timer: Timer?
-    private let onGlyph = makeCupGlyph(.on)
-    private let offGlyph = makeCupGlyph(.off)
-    private let armedGlyph = makeCupGlyph(.armed)
+    private let onGlyph = makeRobotGlyph(.on)
+    private let offGlyph = makeRobotGlyph(.off)
+    private let armedGlyph = makeRobotGlyph(.armed)
 
     // Popover UI
     private let popover = NSPopover()
     private var toggleSwitch: NSSwitch!
     private var mainCard: CardView!         // group-1 card; gets the brand-violet wash when awake
-    private var headerMark: NSImageView!    // header coffee mark; tints violet when awake
+    private var headerMark: NSImageView!    // header robot mark; tints violet when awake
     private var captionLabel: NSTextField!
     private var floorValueLabel: NSTextField!
     private var floorSlider: NSSlider!
@@ -204,15 +240,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         root.blendingMode = .behindWindow
         root.state = .followsWindowActiveState
 
-        // Header: small coffee mark + "Sleepless" (quiet system glyph, not a branded logo).
-        // The mark tints to the brand violet while the Mac is kept awake.
-        let mark = NSImageView(frame: NSRect(x: pad, y: 14, width: 18, height: 18))
-        let headerCup = makeCupGlyph(.on); headerCup.isTemplate = true
-        mark.image = headerCup
+        // Header: small robot mark + app name. The mark tints to the brand violet while
+        // the Mac is kept awake.
+        let mark = NSImageView(frame: NSRect(x: pad, y: 13, width: 19, height: 18))
+        let headerRobot = makeRobotGlyph(.on); headerRobot.isTemplate = true
+        mark.image = headerRobot
         mark.contentTintColor = .labelColor
         root.addSubview(mark)
         headerMark = mark
-        let title = makeLabel("Sleepless", font: .systemFont(ofSize: 14, weight: .semibold), color: .labelColor)
+        let title = makeLabel(appDisplayName, font: .systemFont(ofSize: 14, weight: .semibold), color: .labelColor)
         title.frame = NSRect(x: pad + 24, y: 14, width: contentW - 24, height: 20)
         root.addSubview(title)
 
@@ -306,7 +342,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         g4.addSubview(loginSwitch)
 
         // Footer — Quit (separated by space, not a hairline)
-        let quit = NSButton(title: "Quit Sleepless", target: self, action: #selector(quit))
+        let quit = NSButton(title: "Quit \(appDisplayName)", target: self, action: #selector(quit))
         quit.controlSize = .regular
         quit.bezelStyle = .rounded
         quit.sizeToFit()
@@ -329,7 +365,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return t
     }
 
-    // MARK: - Click the menu-bar cup to open/close the popover
+    // MARK: - Click the menu-bar robot to open/close the popover
     @objc private func statusClicked() {
         if popover.isShown { closePopover() } else { openPopover() }
     }
@@ -397,7 +433,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let intro = NSAlert()
         intro.alertStyle = .informational
         intro.messageText = "Enable keeping your Mac awake"
-        intro.informativeText = "Sleepless flips a protected macOS setting (pmset disablesleep), so it needs your permission once. macOS will ask you to authenticate (Touch ID or your password). After that the switch works instantly, with no more prompts."
+        intro.informativeText = "\(appDisplayName) flips a protected macOS setting (pmset disablesleep), so it needs your permission once. macOS will ask you to authenticate (Touch ID or your password). After that the switch works instantly, with no more prompts."
         intro.addButton(withTitle: "Enable")
         intro.addButton(withTitle: "Not now")
         NSApp.activate(ignoringOtherApps: true)
@@ -424,8 +460,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
-    // A brief, subtle pulse on the menu-bar glyph whenever the state (and thus the cup
-    // shape) changes, so the change is noticeable. Opacity-only: no layer geometry is
+    // A brief, subtle pulse on the menu-bar glyph whenever the robot expression changes,
+    // so the change is noticeable. Opacity-only: no layer geometry is
     // mutated, so it can't shift the status item on any macOS version.
     private func pulseStatusItem() {
         guard let b = statusItem.button else { return }
@@ -478,7 +514,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         autoOffMinutes = 0
         autoOffControl?.selectedSegment = 0
         applyUI(on: readSleepDisabled())
-        notify("Auto-off timer ended. Sleepless turned off.")
+        notify("Auto-off timer ended. \(appDisplayName) turned off.")
     }
 
     private func startCountdownTicker() {
@@ -523,7 +559,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         isOn = on
         if !on { cancelKeepAwakeTimer() }   // going OFF clears any countdown/timer
         // ARMED = kept awake while actively discharging on battery, so the
-        // auto-off safety net is live. Distinct menu-bar glyph (cup + dot).
+        // auto-off safety net is live. Distinct menu-bar glyph (awake robot + dot).
         var armed = false
         if on {
             let (onBattery, discharging, _) = batteryStatus()
@@ -531,15 +567,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if let button = statusItem.button {
             let newImage = on ? (armed ? armedGlyph : onGlyph) : offGlyph
-            if button.image !== newImage {   // state (cup shape) changed -> swap + pulse
+            if button.image !== newImage {   // state (robot expression) changed -> swap + pulse
                 button.image = newImage
                 pulseStatusItem()
             }
             button.toolTip = on
                 ? (armed
-                    ? "Sleepless: on (battery). Auto-off at \(batteryFloorPercent)% or in Low Power Mode."
-                    : "Sleepless: on. Stays awake with the lid closed.")
-                : "Sleepless: off. Sleeps normally."
+                    ? "\(appDisplayName): on (battery). Auto-off at \(batteryFloorPercent)% or in Low Power Mode."
+                    : "\(appDisplayName): on. Stays awake with the lid closed.")
+                : "\(appDisplayName): off. Sleeps normally."
         }
         toggleSwitch?.state = on ? .on : .off
         // Brand-violet accent communicates the privileged "awake" state at a glance.
@@ -627,14 +663,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if percent <= batteryFloorPercent {
             setDisableSleep(false); userForcedOn = false
             applyUI(on: readSleepDisabled())
-            notify("Battery low (\(percent)%). Sleepless turned off.")
+            notify("Battery low (\(percent)%). \(appDisplayName) turned off.")
             return
         }
         // Low Power Mode auto-off, UNLESS the user deliberately chose to keep awake this session.
         if ProcessInfo.processInfo.isLowPowerModeEnabled && !userForcedOn {
             setDisableSleep(false)
             applyUI(on: readSleepDisabled())
-            notify("Low Power Mode on. Sleepless turned off.")
+            notify("Low Power Mode on. \(appDisplayName) turned off.")
         }
     }
 
@@ -663,7 +699,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Notification (mirrors Nexus' osascript approach)
     private func notify(_ message: String) {
-        let script = "display notification \"\(message)\" with title \"Sleepless\" sound name \"Tink\""
+        let script = "display notification \"\(message)\" with title \"\(appDisplayName)\" sound name \"Tink\""
         _ = runCapture("/usr/bin/osascript", ["-e", script])
     }
 

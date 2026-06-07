@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# grant.sh — install ONLY the passwordless grant that lets Sleepless toggle lid-close
+# grant.sh — install ONLY the passwordless grant that lets Sleepless Agents toggle lid-close
 # sleep without a prompt. Self-contained: works from a clone OR from inside the app
 # bundle (Contents/Resources), so Homebrew-cask users can run it after install.
 #
@@ -36,7 +36,7 @@ else
   GRANT="$USER_NAME ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
 fi
 
-echo "Sleepless will install this passwordless grant at $SUDOERS_DST (root:wheel, 0440):"
+echo "Sleepless Agents will install this passwordless grant at $SUDOERS_DST (root:wheel, 0440):"
 echo ""
 echo "    $GRANT"
 echo ""
@@ -55,4 +55,4 @@ fi
 $SUDO install -m 0440 -o root -g wheel "$TMP" "$SUDOERS_DST"
 rm -f "$TMP"
 $SUDO visudo -c >/dev/null && echo "✅ grant installed and sudoers parses cleanly ($SUDOERS_DST)."
-echo "   Toggle Sleepless from the menu bar; it will no longer need a password."
+echo "   Toggle Sleepless Agents from the menu bar; it will no longer need a password."
