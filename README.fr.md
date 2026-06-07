@@ -47,7 +47,7 @@
 
 ```sh
 brew install --cask aboudjem/tap/sleepless
-/Applications/Sleepless.app/Contents/Resources/grant.sh   # one-time passwordless grant
+/Applications/Sleepless\ Agents.app/Contents/Resources/grant.sh   # one-time passwordless grant
 ```
 
 | Autres méthodes | |
@@ -99,7 +99,7 @@ Cliquez ensuite sur la tasse dans la barre des menus, basculez l'interrupteur et
 Sleepless bascule `pmset disablesleep` (le drapeau `SleepDisabled` du noyau), le relit pour que la barre des menus ne mente jamais, et le rétablit à votre plancher de batterie, en mode Économie d'énergie, à la fin de la minuterie ou au redémarrage. Une application graphique ne peut pas saisir de mot de passe, alors l'installateur ajoute une règle sudoers au périmètre strict pour **exactement deux commandes** :
 
 ```
-<you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
+#<your-uid> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **Impossible à élargir.** sudoers compare les arguments littéralement, sans jokers.

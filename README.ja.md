@@ -47,7 +47,7 @@
 
 ```sh
 brew install --cask aboudjem/tap/sleepless
-/Applications/Sleepless.app/Contents/Resources/grant.sh   # one-time passwordless grant
+/Applications/Sleepless\ Agents.app/Contents/Resources/grant.sh   # one-time passwordless grant
 ```
 
 | その他の方法 | |
@@ -99,7 +99,7 @@ brew install --cask aboudjem/tap/sleepless
 Sleepless は `pmset disablesleep`（カーネルの `SleepDisabled` フラグ）を切り替え、値を読み戻すのでメニューバーが嘘をつくことはなく、バッテリー下限に達したとき、Low Power Mode のとき、タイマーが切れたとき、または再起動時に元へ戻します。GUI アプリはパスワードを入力できないため、インストーラーは**ちょうど 2 つのコマンド**だけを許可する、範囲を絞った sudoers ルールを追加します。
 
 ```
-<you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
+#<your-uid> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **範囲を広げられません。** sudoers はワイルドカードなしで引数を文字どおり照合します。

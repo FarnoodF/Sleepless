@@ -11,40 +11,60 @@
 // disablesleep is runtime-only and resets to 0 on reboot, and that reset is a
 // deliberate safety feature; the app does NOT auto re-arm.
 //
-// UI: clicking the menu-bar coffee cup opens a small native popover with an NSSwitch
-// toggle (the System-Settings control), a state caption, an auto-off timer, the
-// battery-floor slider, a Launch-at-login switch, and Quit. The menu-bar glyph also
-// shows state at a glance.
+// SYSTEM vs DISPLAY sleep: disablesleep blocks only SYSTEM sleep, never DISPLAY sleep
+// (the two are independent power domains). So the Mac keeps running headless while the
+// screen is free to turn off. macOS normally blanks the internal panel when the lid is
+// shut; to make that guaranteed and immediate, LidMonitor watches the clamshell sensor
+// and, while we're keeping the Mac awake, issues `pmset displaysleepnow` the moment the
+// lid closes — an action verb that needs NO root.
+// Result: lid closed = display off (no battery drain) + system active in the background.
 //
-// The coffee-cup metaphor is literal: an EMPTY cup means the Mac sleeps normally, a
-// FULL cup means it is being kept awake (caffeinated), and a full cup with a small
-// dot means it is awake on battery with the auto-off safety net live.
+// UI: clicking the menu-bar glyph opens a small native popover with an NSSwitch
+// toggle (the System-Settings control), a state caption, auto-off controls, monitored
+// agent status, a Low-Power-Mode auto-off switch, the battery-floor slider, a
+// Launch-at-login switch, and Quit. The
+// menu-bar glyph also shows state at a glance.
 //
-// Three small, fail-safe features layer on top, none of which adds a daemon or
+// The menu-bar mark uses the existing coffee-cup states: no steam means the Mac sleeps
+// normally, steam means it is being kept awake, and the dot marks battery/auto-off state.
+//
+// Several fail-safe features layer on top, none of which adds a daemon or
 // persists OS state (so "reboot resets it" still holds):
 //   1. Auto-off timer (1h / 2h) — a one-shot in-memory Timer that flips sleep back
 //      on when it fires. Dies on quit; nothing survives a reboot.
 //   2. Launch at login (SMAppService.mainApp) — OFF by default. The app always
 //      launches reading the TRUE system state, so a login launch can never
 //      re-enable disablesleep on its own.
-//   3. Low-Power-Mode auto-off — on battery, if Low Power Mode is on, Sleepless
-//      turns itself off. Same shape as the battery floor, evaluated on the same tick.
+//   3. Low-Power-Mode auto-off (user toggle, ON by default) — on battery, if Low Power
+//      Mode is on, Sleepless turns itself off. Evaluated on the same tick as the battery
+//      floor; a deliberate turn-on overrides it for the session (the hard floor never).
+//   4. Agent/internet auto-off — opt-in safety cutoffs with a grace period; they only
+//      turn Sleepless off and never re-arm keep-awake.
 //
 // Build (mirrors Nexus.app): Command Line Tools `swiftc`, NO Xcode project.
 //   swiftc -O -parse-as-library -target arm64-apple-macos26.0 -framework AppKit \
-//          -framework ServiceManagement
+//          -framework ServiceManagement -framework Network ...
 //   File MUST be named App.swift and compiled -parse-as-library so the
 //   @main enum + @MainActor static main() entry is Swift-6 isolation-safe.
 import AppKit
+import Darwin
 import ServiceManagement
 
 // MARK: - Tunables
-private let pollInterval: TimeInterval = 60
+private let pollInterval: TimeInterval = 30
+private let visibleAgentRefreshInterval: TimeInterval = 2
+private let cutoffGraceInterval: TimeInterval = 120
 // Battery-floor config (user-adjustable via the popover slider; persisted in UserDefaults).
 private let floorKey = "batteryFloorPercent"
+private let agentAutoOffKey = "agentAutoOffEnabled"
+private let internetAutoOffKey = "internetAutoOffEnabled"
+private let lpmAutoOffKey = "lowPowerAutoOffEnabled"
 private let floorDefault = 15
 private let floorMin = 5
 private let floorMax = 50
+private let appDisplayName = "Sleepless"
+private let sudoersDropInPath = "/etc/sudoers.d/sleepless-disablesleep"
+private let sudoersCommandGrant = "ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
 
 // MARK: - Menu-bar coffee glyph (native SF Symbols, MONOCHROME template — state by SHAPE)
 // macOS convention: a menu-bar extra is a template image (no colour) so it adapts to light/dark
@@ -54,8 +74,8 @@ private let floorMax = 50
 //   OFF   (sleeps normally)        = cup.and.saucer            cup resting on its saucer, NO steam (cold/asleep)
 //   ON    (kept awake, on power)   = cup.and.heat.waves.fill   hot cup with rising steam (awake)
 //   ARMED (kept awake, on battery) = cup.and.heat.waves.fill + a small dot (awake, safety net live)
-// The no-steam → steam change reads instantly even at 16 px; the armed dot is the only extra
-// mark. All template (monochrome) — SF Symbols only, no hand-drawn paths.
+// The no-steam -> steam change reads instantly even at 16 px; the armed dot is the only extra
+// mark. All template (monochrome) -- SF Symbols only, no hand-drawn paths.
 enum SleepGlyph {
     case off
     case on
@@ -139,6 +159,10 @@ private final class CardView: NSView {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let power = PowerController()
+    private let agentMonitor = AgentMonitor()
+    private let connectivityMonitor = ConnectivityMonitor()
+    private let lidMonitor = LidMonitor()
     private var statusItem: NSStatusItem!
     private var timer: Timer?
     private let onGlyph = makeCupGlyph(.on)
@@ -149,17 +173,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let popover = NSPopover()
     private var toggleSwitch: NSSwitch!
     private var mainCard: CardView!         // group-1 card; gets the brand-violet wash when awake
-    private var headerMark: NSImageView!    // header coffee mark; tints violet when awake
+    private var headerMark: NSImageView!    // header mark; tints violet when awake
     private var captionLabel: NSTextField!
     private var floorValueLabel: NSTextField!
     private var floorSlider: NSSlider!
     private var autoOffControl: NSSegmentedControl!
     private var countdownLabel: NSTextField!
+    private var internetSwitch: NSSwitch!
+    private var lowPowerSwitch: NSSwitch!
+    private var agentAutoOffSwitch: NSSwitch!
+    private var agentSummaryLabel: NSTextField!
+    private var agentEmptyLabel: NSTextField!
+    private var agentRows: [AgentID: (name: NSTextField, status: NSTextField, setup: NSButton)] = [:]
     private var loginSwitch: NSSwitch!
     private var clickMonitor: Any?
     private var batteryFloorPercent = floorDefault
+    private var internetAutoOffEnabled = false
+    private var agentAutoOffEnabled = false
+    private var lowPowerAutoOffEnabled = true   // ON by default: matches the long-standing safety behavior
     private var isOn = false
     private var userForcedOn = false   // user deliberately turned it on; honor over the Low Power Mode auto-off (the hard battery floor still wins)
+    private var lastAgentSnapshots: [AgentToolSnapshot] = []
+    private var lastInternetReachable = true
+    private var noAgentsSince: Date?
+    private var noInternetSince: Date?
+    private var agentStatusTicker: Timer?
+    private var agentRefreshInFlight = false
+    private var agentRefreshPending = false
+    private var pendingAgentRefreshCompletions: [() -> Void] = []
 
     // Auto-off timer (in-memory; dies on quit, never survives a reboot)
     private var autoOffMinutes = 0           // 0 = none (stay on until off), 60, or 120
@@ -167,12 +208,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var countdownTicker: Timer?      // 1 Hz label refresh, only while the popover is open
     private var timerEndDate: Date?
 
-    private let popoverWidth: CGFloat = 320
-    private let popoverHeight: CGFloat = 432
+    private let popoverWidth: CGFloat = 360
+    private let popoverHeight: CGFloat = 644
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         batteryFloorPercent = min(max((UserDefaults.standard.object(forKey: floorKey) as? Int) ?? floorDefault, floorMin), floorMax)
+        internetAutoOffEnabled = UserDefaults.standard.bool(forKey: internetAutoOffKey)
+        agentAutoOffEnabled = UserDefaults.standard.bool(forKey: agentAutoOffKey)
+        // Unset => true, so existing installs keep the Low Power Mode safety net they already had.
+        lowPowerAutoOffEnabled = (UserDefaults.standard.object(forKey: lpmAutoOffKey) as? Bool) ?? true
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.image = offGlyph
@@ -184,9 +229,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentSize = NSSize(width: popoverWidth, height: popoverHeight)
         popover.contentViewController = makeContentController()
 
+        // Lid-close -> turn displays off (system stays awake). disablesleep blocks only
+        // SYSTEM sleep, never display sleep, so explicitly idle the display side too.
+        lidMonitor.onLidClosed = { [weak self] in self?.handleLidClosed() }
+        lidMonitor.start()
+
         refresh()   // reflect TRUE system state on launch (never a stale assumption)
+        reconcileLidClosedDisplaySleep()
         timer = Timer.scheduledTimer(timeInterval: pollInterval, target: self,
                                      selector: #selector(poll), userInfo: nil, repeats: true)
+    }
+
+    // Force all displays to sleep the instant the lid closes, but only while we're
+    // actively keeping the Mac awake. Needs no privilege: `pmset displaysleepnow` is an
+    // action, not a setting. Retrying shortly after the clamshell transition covers the
+    // momentary display/user-activity churn macOS may emit as the lid state settles.
+    private func handleLidClosed() {
+        guard isOn else { return }
+        power.sleepDisplayNow()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            self?.reconcileLidClosedDisplaySleep()
+        }
+    }
+
+    private func reconcileLidClosedDisplaySleep() {
+        guard isOn, LidMonitor.readClamshellClosed() else { return }
+        power.sleepDisplayNow()
     }
 
     // MARK: - Popover content (native NSSwitch toggle, macOS-aligned)
@@ -204,15 +272,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         root.blendingMode = .behindWindow
         root.state = .followsWindowActiveState
 
-        // Header: small coffee mark + "Sleepless" (quiet system glyph, not a branded logo).
-        // The mark tints to the brand violet while the Mac is kept awake.
+        // Header: small coffee mark + app name. The mark tints to the brand violet while
+        // the Mac is kept awake.
         let mark = NSImageView(frame: NSRect(x: pad, y: 14, width: 18, height: 18))
         let headerCup = makeCupGlyph(.on); headerCup.isTemplate = true
         mark.image = headerCup
         mark.contentTintColor = .labelColor
         root.addSubview(mark)
         headerMark = mark
-        let title = makeLabel("Sleepless", font: .systemFont(ofSize: 14, weight: .semibold), color: .labelColor)
+        let title = makeLabel(appDisplayName, font: .systemFont(ofSize: 14, weight: .semibold), color: .labelColor)
         title.frame = NSRect(x: pad + 24, y: 14, width: contentW - 24, height: 20)
         root.addSubview(title)
 
@@ -228,7 +296,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let swH = swProto.height > 0 ? swProto.height : 21
 
         // GROUP 1 — main switch + state caption
-        let g1y: CGFloat = 46, g1h: CGFloat = 84
+        let g1y: CGFloat = 46, g1h: CGFloat = 78
         let g1 = makeCard(NSRect(x: pad, y: g1y, width: contentW, height: g1h))
         mainCard = g1
         let rowLabel = makeLabel("Keep awake with lid closed", font: .systemFont(ofSize: 13), color: .labelColor)
@@ -240,7 +308,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toggleSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
         g1.addSubview(toggleSwitch)
         captionLabel = makeLabel("", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
-        captionLabel.frame = NSRect(x: ci, y: ci + 30, width: cw, height: 32)
+        captionLabel.frame = NSRect(x: ci, y: ci + 28, width: cw, height: 30)
         captionLabel.usesSingleLineMode = false
         captionLabel.lineBreakMode = .byWordWrapping
         captionLabel.maximumNumberOfLines = 2
@@ -248,10 +316,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         g1.addSubview(captionLabel)
 
         // GROUP 2 — auto-off timer (label + segmented [Off | 1h | 2h] + countdown)
-        let g2y = g1y + g1h + 12, g2h: CGFloat = 78
+        let g2y = g1y + g1h + 10, g2h: CGFloat = 58
         let g2 = makeCard(NSRect(x: pad, y: g2y, width: contentW, height: g2h))
         let timerLabel = makeLabel("Auto-off timer", font: .systemFont(ofSize: 13), color: .labelColor)
-        timerLabel.frame = NSRect(x: ci, y: ci + 3, width: 110, height: 22)
+        timerLabel.frame = NSRect(x: ci, y: ci, width: 110, height: 22)
         g2.addSubview(timerLabel)
         autoOffControl = NSSegmentedControl(labels: ["Off", "1h", "2h"],
                                             trackingMode: .selectOne,
@@ -262,56 +330,117 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         autoOffControl.sizeToFit()
         let segSize = autoOffControl.frame.size
         let segW = segSize.width > 0 ? segSize.width : 150
-        autoOffControl.frame = NSRect(x: contentW - ci - segW, y: ci, width: segW, height: max(segSize.height, 24))
+        autoOffControl.frame = NSRect(x: contentW - ci - segW, y: ci - 1, width: segW, height: max(segSize.height, 24))
         g2.addSubview(autoOffControl)
         countdownLabel = makeLabel("", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
-        countdownLabel.frame = NSRect(x: ci, y: ci + 36, width: cw, height: 16)
+        countdownLabel.frame = NSRect(x: ci, y: ci + 26, width: cw, height: 16)
         g2.addSubview(countdownLabel)
 
-        // GROUP 3 — battery-floor (label + value + slider + min/max hints)
-        let g3y = g2y + g2h + 12, g3h: CGFloat = 92
+        // GROUP 3 — agents (only installed/detectable tools are shown)
+        let g3y = g2y + g2h + 10, g3h: CGFloat = 140
         let g3 = makeCard(NSRect(x: pad, y: g3y, width: contentW, height: g3h))
+        let agentsLabel = makeLabel("Auto-off when agents are idle", font: .systemFont(ofSize: 13), color: .labelColor)
+        agentsLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
+        g3.addSubview(agentsLabel)
+        agentAutoOffSwitch = NSSwitch()
+        agentAutoOffSwitch.target = self
+        agentAutoOffSwitch.action = #selector(agentAutoOffToggled(_:))
+        agentAutoOffSwitch.state = agentAutoOffEnabled ? .on : .off
+        agentAutoOffSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
+        g3.addSubview(agentAutoOffSwitch)
+        agentSummaryLabel = makeLabel("Auto-off when no agents are running", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
+        agentSummaryLabel.frame = NSRect(x: ci, y: ci + 26, width: cw, height: 17)
+        g3.addSubview(agentSummaryLabel)
+        agentEmptyLabel = makeLabel("No supported agent tools found", font: .systemFont(ofSize: 12), color: .tertiaryLabelColor)
+        agentEmptyLabel.frame = NSRect(x: ci, y: ci + 54, width: cw, height: 17)
+        g3.addSubview(agentEmptyLabel)
+        for (idx, id) in AgentID.allCases.enumerated() {
+            let y = ci + 52 + CGFloat(idx * 23)
+            let name = makeLabel(id.displayName, font: .systemFont(ofSize: 12), color: .labelColor)
+            name.frame = NSRect(x: ci, y: y, width: 112, height: 18)
+            let status = makeLabel("", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
+            status.alignment = .right
+            status.frame = NSRect(x: ci + 112, y: y, width: cw - 112 - 66, height: 18)
+            let setup = NSButton(title: "Set Up", target: self, action: #selector(setupAgentIntegration(_:)))
+            setup.tag = idx
+            setup.controlSize = .small
+            setup.bezelStyle = .rounded
+            setup.frame = NSRect(x: contentW - ci - 58, y: y - 2, width: 58, height: 22)
+            g3.addSubview(name); g3.addSubview(status); g3.addSubview(setup)
+            agentRows[id] = (name, status, setup)
+        }
+
+        // GROUP 4 — internet auto-off
+        let g4y = g3y + g3h + 10, g4h: CGFloat = 46
+        let g4 = makeCard(NSRect(x: pad, y: g4y, width: contentW, height: g4h))
+        let internetLabel = makeLabel("Auto-off at no internet", font: .systemFont(ofSize: 13), color: .labelColor)
+        internetLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
+        g4.addSubview(internetLabel)
+        internetSwitch = NSSwitch()
+        internetSwitch.target = self
+        internetSwitch.action = #selector(internetAutoOffToggled(_:))
+        internetSwitch.state = internetAutoOffEnabled ? .on : .off
+        internetSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
+        g4.addSubview(internetSwitch)
+
+        // GROUP 4b — Low Power Mode auto-off (surfaces the battery-side safety net as a control,
+        // grouped next to the battery floor since both protect a discharging battery)
+        let glpy = g4y + g4h + 10, glph: CGFloat = 46
+        let glp = makeCard(NSRect(x: pad, y: glpy, width: contentW, height: glph))
+        let lpmLabel = makeLabel("Auto-off in Low Power Mode", font: .systemFont(ofSize: 13), color: .labelColor)
+        lpmLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
+        glp.addSubview(lpmLabel)
+        lowPowerSwitch = NSSwitch()
+        lowPowerSwitch.target = self
+        lowPowerSwitch.action = #selector(lowPowerAutoOffToggled(_:))
+        lowPowerSwitch.state = lowPowerAutoOffEnabled ? .on : .off
+        lowPowerSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
+        glp.addSubview(lowPowerSwitch)
+
+        // GROUP 5 — battery-floor (label + value + slider + min/max hints)
+        let g5y = glpy + glph + 10, g5h: CGFloat = 80
+        let g5 = makeCard(NSRect(x: pad, y: g5y, width: contentW, height: g5h))
         let floorLabel = makeLabel("Auto-off at low battery", font: .systemFont(ofSize: 13), color: .labelColor)
         floorLabel.frame = NSRect(x: ci, y: ci, width: cw - 54, height: 18)
-        g3.addSubview(floorLabel)
+        g5.addSubview(floorLabel)
         floorValueLabel = makeLabel("\(batteryFloorPercent)%", font: .systemFont(ofSize: 13, weight: .semibold), color: .secondaryLabelColor)
         floorValueLabel.alignment = .right
         floorValueLabel.frame = NSRect(x: contentW - ci - 54, y: ci, width: 54, height: 18)
-        g3.addSubview(floorValueLabel)
+        g5.addSubview(floorValueLabel)
         floorSlider = NSSlider(value: Double(batteryFloorPercent), minValue: Double(floorMin), maxValue: Double(floorMax),
                                target: self, action: #selector(floorSliderChanged(_:)))
-        floorSlider.isContinuous = true          // live update while dragging
+        floorSlider.isContinuous = true
         floorSlider.controlSize = .regular
-        floorSlider.frame = NSRect(x: ci, y: ci + 26, width: cw, height: 20)
-        g3.addSubview(floorSlider)
+        floorSlider.frame = NSRect(x: ci, y: ci + 22, width: cw, height: 20)
+        g5.addSubview(floorSlider)
         let minHint = makeLabel("\(floorMin)%", font: .systemFont(ofSize: 10), color: .tertiaryLabelColor)
-        minHint.frame = NSRect(x: ci, y: ci + 50, width: 34, height: 13)
-        g3.addSubview(minHint)
+        minHint.frame = NSRect(x: ci, y: ci + 44, width: 34, height: 13)
+        g5.addSubview(minHint)
         let maxHint = makeLabel("\(floorMax)%", font: .systemFont(ofSize: 10), color: .tertiaryLabelColor)
         maxHint.alignment = .right
-        maxHint.frame = NSRect(x: contentW - ci - 34, y: ci + 50, width: 34, height: 13)
-        g3.addSubview(maxHint)
+        maxHint.frame = NSRect(x: contentW - ci - 34, y: ci + 44, width: 34, height: 13)
+        g5.addSubview(maxHint)
 
-        // GROUP 4 — launch at login (off by default; never auto-enables sleep prevention)
-        let g4y = g3y + g3h + 12, g4h: CGFloat = 46
-        let g4 = makeCard(NSRect(x: pad, y: g4y, width: contentW, height: g4h))
+        // GROUP 6 — launch at login (off by default; never auto-enables sleep prevention)
+        let g6y = g5y + g5h + 10, g6h: CGFloat = 42
+        let g6 = makeCard(NSRect(x: pad, y: g6y, width: contentW, height: g6h))
         let loginLabel = makeLabel("Launch at login", font: .systemFont(ofSize: 13), color: .labelColor)
-        loginLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
-        g4.addSubview(loginLabel)
+        loginLabel.frame = NSRect(x: ci, y: 10, width: cw - swW - 8, height: 22)
+        g6.addSubview(loginLabel)
         loginSwitch = NSSwitch()
         loginSwitch.target = self
         loginSwitch.action = #selector(loginToggled(_:))
         loginSwitch.state = loginItemEnabled() ? .on : .off
-        loginSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
-        g4.addSubview(loginSwitch)
+        loginSwitch.frame = NSRect(x: contentW - ci - swW, y: 10 + (22 - swH) / 2, width: swW, height: swH)
+        g6.addSubview(loginSwitch)
 
         // Footer — Quit (separated by space, not a hairline)
-        let quit = NSButton(title: "Quit Sleepless", target: self, action: #selector(quit))
+        let quit = NSButton(title: "Quit \(appDisplayName)", target: self, action: #selector(quit))
         quit.controlSize = .regular
         quit.bezelStyle = .rounded
         quit.sizeToFit()
         let qs = quit.frame.size
-        quit.frame = NSRect(x: W - pad - qs.width, y: g4y + g4h + 12, width: qs.width, height: qs.height)
+        quit.frame = NSRect(x: W - pad - qs.width, y: g6y + g6h + 10, width: qs.width, height: qs.height)
         root.addSubview(quit)
 
         let vc = NSViewController()
@@ -329,19 +458,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return t
     }
 
-    // MARK: - Click the menu-bar cup to open/close the popover
+    // MARK: - Click the menu-bar glyph to open/close the popover
     @objc private func statusClicked() {
         if popover.isShown { closePopover() } else { openPopover() }
     }
 
     private func openPopover() {
         refresh()                              // sync switch/caption to TRUE state before showing
+        refreshAgentStatus()
         loginSwitch?.state = loginItemEnabled() ? .on : .off
         guard let button = statusItem.button else { return }
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
         if keepAwakeTimer != nil { startCountdownTicker() }
+        startAgentStatusTicker()
         updateCountdownLabel()
         // Close when the user clicks anywhere outside the app (status bar, another app, desktop).
         clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
@@ -352,6 +483,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func closePopover() {
         popover.performClose(nil)
         countdownTicker?.invalidate(); countdownTicker = nil   // stop the 1 Hz label refresh (keep-awake timer keeps running)
+        agentStatusTicker?.invalidate(); agentStatusTicker = nil
         if let monitor = clickMonitor { NSEvent.removeMonitor(monitor); clickMonitor = nil }
     }
 
@@ -383,50 +515,79 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A deliberate, successful turn-on wins over the Low Power Mode auto-off (hard floor still wins).
         userForcedOn = wantOn && result == .ok
         refresh()                              // applies UI + safety nets; switch reflects reality
+        reconcileLidClosedDisplaySleep()
         if isOn, autoOffMinutes > 0 { startKeepAwakeTimer(minutes: autoOffMinutes) }
         return false
     }
 
     // Install the one-time scoped grant via a SINGLE native macOS authorization (the
-    // standard Touch ID / password sheet) — no Terminal. Runs the bundled, audited
-    // grant.sh as root through osascript's "with administrator privileges"; grant.sh is
-    // root-aware so it writes the sudoers drop-in directly with no inner sudo prompt.
+    // standard Touch ID / password sheet) — no Terminal. The privileged script is
+    // generated from constants baked into this binary, not loaded from the mutable app
+    // bundle, then validated with visudo before installation.
     // Returns true once the passwordless grant is in place; after that the app never asks again.
     @discardableResult
     private func installGrantViaAuth() -> Bool {
         let intro = NSAlert()
         intro.alertStyle = .informational
         intro.messageText = "Enable keeping your Mac awake"
-        intro.informativeText = "Sleepless flips a protected macOS setting (pmset disablesleep), so it needs your permission once. macOS will ask you to authenticate (Touch ID or your password). After that the switch works instantly, with no more prompts."
+        intro.informativeText = "\(appDisplayName) flips a protected macOS setting (pmset disablesleep), so it needs your permission once. macOS will ask you to authenticate (Touch ID or your password). After that the switch works instantly, with no more prompts."
         intro.addButton(withTitle: "Enable")
         intro.addButton(withTitle: "Not now")
         NSApp.activate(ignoringOtherApps: true)
         guard intro.runModal() == .alertFirstButtonReturn else { return false }
 
-        guard let res = Bundle.main.resourcePath else { return false }
-        let grant = res + "/grant.sh"
-        // Pass the REAL user: under the native auth sheet grant.sh runs as root with
-        // SUDO_USER unset, so without this the grant would be written for "root" (useless).
-        let shellCmd = "SLEEPLESS_USER='\(NSUserName())' /bin/bash '\(grant)' --yes"
-        // escape for an AppleScript string literal, then run with one native auth sheet
-        let escaped = shellCmd.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-        let osa = "do shell script \"\(escaped)\" with administrator privileges"
+        guard let userSpec = sudoersUserSpec() else {
+            notify("Couldn't set up permission: unsupported user ID.")
+            return false
+        }
+
+        let grant = "\(userSpec) \(sudoersCommandGrant)"
+        let installScript = [
+            "set -euo pipefail",
+            "tmp=\"$(/usr/bin/mktemp)\"",
+            "trap '/bin/rm -f \"$tmp\"' EXIT",
+            "/usr/bin/printf '%s\\n' \(shellSingleQuoted(grant)) > \"$tmp\"",
+            "/usr/sbin/visudo -cf \"$tmp\" >/dev/null",
+            "/usr/bin/install -m 0440 -o root -g wheel \"$tmp\" \(shellSingleQuoted(sudoersDropInPath))",
+            "/usr/sbin/visudo -c >/dev/null"
+        ].joined(separator: "; ")
+        let shellCmd = "/bin/bash -c \(shellSingleQuoted(installScript))"
+        let osa = "do shell script \(appleScriptStringLiteral(shellCmd)) with administrator privileges"
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         proc.arguments = ["-e", osa]
-        proc.standardOutput = Pipe(); proc.standardError = Pipe()
-        do { try proc.run(); proc.waitUntilExit() }
+        proc.standardOutput = FileHandle.nullDevice
+        let errPipe = Pipe()
+        proc.standardError = errPipe
+        let errData: Data
+        do {
+            try proc.run()
+            errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+            proc.waitUntilExit()
+        }
         catch { notify("Couldn't start the one-time setup."); return false }
-        if proc.terminationStatus == 0 { return true }   // grant.sh installed the rule successfully
+        if proc.terminationStatus == 0 { return true }   // sudoers drop-in installed successfully
         if proc.terminationStatus != 128 {               // 128 = user cancelled the auth sheet
+            let err = String(data: errData, encoding: .utf8) ?? ""
+            if !err.isEmpty { NSLog("Sleepless setup failed: %@", err) }
             notify("Setup didn't complete. Try again, or run grant.sh from the app bundle.")
         }
         return false
     }
 
-    // A brief, subtle pulse on the menu-bar glyph whenever the state (and thus the cup
-    // shape) changes, so the change is noticeable. Opacity-only: no layer geometry is
-    // mutated, so it can't shift the status item on any macOS version.
+    private func sudoersUserSpec() -> String? {
+        let uid = getuid()
+        guard uid > 0 else { return nil }
+        return "#\(uid)"
+    }
+
+    private func shellSingleQuoted(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    // A brief, subtle pulse on the menu-bar glyph whenever the state changes, so the
+    // change is noticeable. Opacity-only: no layer geometry is mutated, so it can't shift
+    // the status item on any macOS version.
     private func pulseStatusItem() {
         guard let b = statusItem.button else { return }
         b.wantsLayer = true
@@ -438,7 +599,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         b.layer?.add(pulse, forKey: "statePulse")
     }
 
-    @objc private func poll() { refresh() }
+    @objc private func poll() {
+        refreshAgentStatus()
+        connectivityMonitor.checkNow { [weak self] reachable in
+            guard let self else { return }
+            self.lastInternetReachable = reachable
+            self.renderInternetSection()
+            self.refresh()
+        }
+    }
 
     // MARK: - Auto-off timer (Feature 1)
     @objc private func autoOffChanged(_ sender: NSSegmentedControl) {
@@ -478,7 +647,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         autoOffMinutes = 0
         autoOffControl?.selectedSegment = 0
         applyUI(on: readSleepDisabled())
-        notify("Auto-off timer ended. Sleepless turned off.")
+        notify("Auto-off timer ended. \(appDisplayName) turned off.")
     }
 
     private func startCountdownTicker() {
@@ -496,6 +665,151 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let h = remaining / 3600, m = (remaining % 3600) / 60, s = remaining % 60
         let t = h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
         countdownLabel?.stringValue = "Auto-off in \(t)"
+    }
+
+    // MARK: - Agent + internet cutoffs
+    @objc private func agentAutoOffToggled(_ sender: NSSwitch) {
+        if sender.state == .on {
+            refreshAgentStatus { [weak self] in
+                guard let self else { return }
+                let healthyCount = self.lastAgentSnapshots.filter { $0.status != .setupNeeded }.count
+                if self.lastAgentSnapshots.isEmpty {
+                    self.agentAutoOffEnabled = false
+                    sender.state = .off
+                    UserDefaults.standard.set(false, forKey: agentAutoOffKey)
+                    self.notify("No supported agent tools found.")
+                } else if healthyCount == 0 {
+                    self.agentAutoOffEnabled = false
+                    sender.state = .off
+                    UserDefaults.standard.set(false, forKey: agentAutoOffKey)
+                    self.notify("Set up an agent detector before enabling agent auto-off.")
+                } else {
+                    self.agentAutoOffEnabled = true
+                    UserDefaults.standard.set(true, forKey: agentAutoOffKey)
+                }
+                self.renderAgentSection()
+            }
+            return
+        }
+        agentAutoOffEnabled = false
+        UserDefaults.standard.set(false, forKey: agentAutoOffKey)
+        noAgentsSince = nil
+        renderAgentSection()
+    }
+
+    @objc private func internetAutoOffToggled(_ sender: NSSwitch) {
+        internetAutoOffEnabled = sender.state == .on
+        UserDefaults.standard.set(internetAutoOffEnabled, forKey: internetAutoOffKey)
+        if !internetAutoOffEnabled { noInternetSince = nil }
+        renderInternetSection()
+    }
+
+    @objc private func lowPowerAutoOffToggled(_ sender: NSSwitch) {
+        lowPowerAutoOffEnabled = sender.state == .on
+        UserDefaults.standard.set(lowPowerAutoOffEnabled, forKey: lpmAutoOffKey)
+        // Re-evaluate now so enabling it while already in Low Power Mode can take effect this
+        // tick, and the caption's cutoff list updates immediately. A deliberate turn-on this
+        // session (userForcedOn) still wins; the hard battery floor still always wins.
+        refresh()
+    }
+
+    @objc private func setupAgentIntegration(_ sender: NSButton) {
+        guard sender.tag >= 0, sender.tag < AgentID.allCases.count else { return }
+        let id = AgentID.allCases[sender.tag]
+        let result = agentMonitor.installIntegration(for: id)
+        if result.ok {
+            notify(result.message)
+            let alert = NSAlert()
+            alert.alertStyle = .informational
+            alert.messageText = "\(id.displayName) detector set up"
+            alert.informativeText = "\(appDisplayName) installed an app-wide hook for \(id.displayName). The row should now show Idle, and it will show Active only while the hook is producing fresh activity heartbeats."
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        } else {
+            notify("Couldn't set up \(id.displayName). Details were logged.")
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Couldn't set up \(id.displayName)"
+            alert.informativeText = "\(result.message)\n\nDebug log:\n\(result.logURL.path)"
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+        refreshAgentStatus()
+    }
+
+    private func startAgentStatusTicker() {
+        agentStatusTicker?.invalidate()
+        agentStatusTicker = Timer.scheduledTimer(timeInterval: visibleAgentRefreshInterval, target: self,
+                                                 selector: #selector(agentStatusTick), userInfo: nil, repeats: true)
+    }
+
+    @objc private func agentStatusTick() { refreshAgentStatus() }
+
+    private func refreshAgentStatus(completion: (() -> Void)? = nil) {
+        guard !agentRefreshInFlight else {
+            agentRefreshPending = true
+            if let completion { pendingAgentRefreshCompletions.append(completion) }
+            return
+        }
+        agentRefreshInFlight = true
+        agentMonitor.snapshotsAsync { [weak self] snapshots in
+            guard let self else { return }
+            self.agentRefreshInFlight = false
+            self.lastAgentSnapshots = snapshots
+            self.renderAgentSection()
+            completion?()
+            if self.agentRefreshPending {
+                let completions = self.pendingAgentRefreshCompletions
+                self.pendingAgentRefreshCompletions = []
+                self.agentRefreshPending = false
+                self.refreshAgentStatus {
+                    completions.forEach { $0() }
+                }
+            }
+        }
+    }
+
+    private func renderAgentSection() {
+        agentAutoOffSwitch?.state = agentAutoOffEnabled ? .on : .off
+        let activeCount = lastAgentSnapshots.filter { $0.status == .active }.count
+        let healthyCount = lastAgentSnapshots.filter { $0.status != .setupNeeded }.count
+        if lastAgentSnapshots.isEmpty {
+            agentSummaryLabel?.stringValue = "Auto-off when no agents are running"
+            agentEmptyLabel?.isHidden = false
+            agentAutoOffSwitch?.isEnabled = false
+        } else {
+            agentEmptyLabel?.isHidden = true
+            agentAutoOffSwitch?.isEnabled = true
+            if activeCount > 0 {
+                agentSummaryLabel?.stringValue = "\(activeCount) active agent\(activeCount == 1 ? "" : "s") detected"
+            } else if healthyCount == 0 {
+                agentSummaryLabel?.stringValue = "Set up a detector before auto-off can act"
+            } else {
+                agentSummaryLabel?.stringValue = "No active agents detected"
+            }
+        }
+
+        for id in AgentID.allCases {
+            guard let row = agentRows[id] else { continue }
+            guard let snapshot = lastAgentSnapshots.first(where: { $0.id == id }) else {
+                row.name.isHidden = true
+                row.status.isHidden = true
+                row.setup.isHidden = true
+                continue
+            }
+            row.name.isHidden = false
+            row.status.isHidden = false
+            let setupNeeded = snapshot.status == .setupNeeded
+            row.setup.isHidden = !setupNeeded
+            let statusRightEdge = setupNeeded ? row.setup.frame.minX - 8 : row.setup.frame.maxX
+            row.status.frame.size.width = max(0, statusRightEdge - row.status.frame.minX)
+            row.status.stringValue = snapshot.status.rawValue
+            row.status.textColor = snapshot.status == .active ? brandAccentSoft : .secondaryLabelColor
+        }
+    }
+
+    private func renderInternetSection() {
+        internetSwitch?.state = internetAutoOffEnabled ? .on : .off
     }
 
     // MARK: - Launch at login (Feature 2) — OFF by default; never re-enables sleep prevention
@@ -517,13 +831,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let on = readSleepDisabled()
         applyUI(on: on)
         if on { enforceSafetyNets() }
+        reconcileLidClosedDisplaySleep()
     }
 
     private func applyUI(on: Bool) {
         isOn = on
         if !on { cancelKeepAwakeTimer() }   // going OFF clears any countdown/timer
         // ARMED = kept awake while actively discharging on battery, so the
-        // auto-off safety net is live. Distinct menu-bar glyph (cup + dot).
+        // auto-off safety net is live. Distinct menu-bar glyph (awake cup + dot).
         var armed = false
         if on {
             let (onBattery, discharging, _) = batteryStatus()
@@ -531,30 +846,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if let button = statusItem.button {
             let newImage = on ? (armed ? armedGlyph : onGlyph) : offGlyph
-            if button.image !== newImage {   // state (cup shape) changed -> swap + pulse
+                if button.image !== newImage {   // state changed -> swap + pulse
                 button.image = newImage
                 pulseStatusItem()
             }
             button.toolTip = on
                 ? (armed
-                    ? "Sleepless: on (battery). Auto-off at \(batteryFloorPercent)% or in Low Power Mode."
-                    : "Sleepless: on. Stays awake with the lid closed.")
-                : "Sleepless: off. Sleeps normally."
+                    ? "\(appDisplayName): on (battery). " + (lowPowerAutoOffEnabled
+                        ? "Auto-off at \(batteryFloorPercent)% or in Low Power Mode."
+                        : "Auto-off at \(batteryFloorPercent)%.")
+                    : "\(appDisplayName): on. Stays awake with the lid closed; the display turns off to save power.")
+                : "\(appDisplayName): off. Sleeps normally."
         }
         toggleSwitch?.state = on ? .on : .off
         // Brand-violet accent communicates the privileged "awake" state at a glance.
         mainCard?.active = on
         headerMark?.contentTintColor = on ? brandAccentSoft : .labelColor
         renderText()
+        renderAgentSection()
+        renderInternetSection()
         updateCountdownLabel()
     }
 
     // Update text labels only (no pmset subprocess; safe to call on every slider tick).
     private func renderText() {
         floorValueLabel?.stringValue = "\(batteryFloorPercent)%"
-        captionLabel?.stringValue = isOn
-            ? "Stays awake when the lid is closed. Turns off at \(batteryFloorPercent)% battery or in Low Power Mode."
-            : "Sleeps normally when you close the lid."
+        if isOn {
+            // Each cutoff is a self-contained phrase so the sentence reads naturally no matter
+            // which optional safety nets are on (the hard battery floor is always present).
+            var cutoffs = ["below \(batteryFloorPercent)% battery"]
+            if lowPowerAutoOffEnabled { cutoffs.append("in Low Power Mode") }
+            if internetAutoOffEnabled { cutoffs.append("with no internet") }
+            if agentAutoOffEnabled { cutoffs.append("with no agents running") }
+            captionLabel?.stringValue = "Awake with the lid closed; the display turns off to save power. Turns off " + cutoffs.joined(separator: ", ") + "."
+        } else {
+            captionLabel?.stringValue = "Sleeps normally when you close the lid."
+        }
     }
 
     @objc private func floorSliderChanged(_ sender: NSSlider) {
@@ -566,125 +893,100 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         renderText()
     }
 
-    // Result of the privileged keep-awake toggle, based on sudo's REAL exit status — not on a
-    // second, independent state read. `.ok` = the command ran; `.grantMissing` = the passwordless
-    // sudoers grant isn't installed (sudo -n refused), the one case that warrants setup; `.failed`
-    // = any other error. Using sudo's own result (instead of re-reading SleepDisabled) is the fix:
-    // a safety net flipping sleep back on must never look like "permission missing" and re-prompt.
-    private enum ToggleResult: Equatable { case ok, grantMissing, failed(String) }
-
     @discardableResult
     private func setDisableSleep(_ on: Bool) -> ToggleResult {
-        // sudo -n: never prompt (GUI app has no TTY). The exact argument vector matches the
-        // NOPASSWD sudoers grant, so this runs without a password.
-        let (exit, _, err) = runPrivileged(["-n", "/usr/bin/pmset", "-a", "disablesleep", on ? "1" : "0"])
-        let result: ToggleResult
-        if exit == 0 {
-            result = .ok
-        } else if err.range(of: "a password is required", options: .caseInsensitive) != nil
-               || err.range(of: "not allowed", options: .caseInsensitive) != nil
-               || err.range(of: "may not run", options: .caseInsensitive) != nil {
-            result = .grantMissing   // grant absent/removed -> sudo -n refused to run passwordless
-        } else {
-            result = .failed(err.isEmpty ? "exit \(exit)" : err.trimmingCharacters(in: .whitespacesAndNewlines))
-        }
-        return result
-    }
-
-    // Run a privileged command via sudo, capturing exit status + stderr (which the generic
-    // runCapture discards). stdin is /dev/null so a GUI process with no controlling TTY can
-    // never block on a prompt. This is what lets the app KNOW whether its own toggle worked.
-    private func runPrivileged(_ args: [String]) -> (exit: Int32, out: String, err: String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-        process.arguments = args
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
-        env["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
-        process.environment = env
-        let outPipe = Pipe(), errPipe = Pipe()
-        process.standardOutput = outPipe
-        process.standardError = errPipe
-        process.standardInput = FileHandle.nullDevice
-        do { try process.run() }
-        catch {
-            NSLog("Sleepless: failed to launch sudo: %@", error.localizedDescription)
-            return (-1, "", "launch failed: \(error.localizedDescription)")
-        }
-        let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return (process.terminationStatus,
-                String(data: outData, encoding: .utf8) ?? "",
-                String(data: errData, encoding: .utf8) ?? "")
+        power.setDisableSleep(on)
     }
 
     // MARK: - Battery + Low-Power-Mode safety nets (silent; no extra UI) — Feature 3
     private func enforceSafetyNets() {
         let (onBattery, discharging, percent) = batteryStatus()
-        guard onBattery, discharging else { return }
-        // Hard battery floor ALWAYS wins, even over a deliberate turn-on: never drain to empty.
-        if percent <= batteryFloorPercent {
-            setDisableSleep(false); userForcedOn = false
-            applyUI(on: readSleepDisabled())
-            notify("Battery low (\(percent)%). Sleepless turned off.")
+        if onBattery, discharging {
+            // Hard battery floor ALWAYS wins, even over a deliberate turn-on: never drain to empty.
+            if percent <= batteryFloorPercent {
+                turnOffFromSafetyNet("Battery low (\(percent)%). \(appDisplayName) turned off.")
+                userForcedOn = false
+                return
+            }
+            // Low Power Mode auto-off (user-controllable; ON by default), UNLESS the user
+            // deliberately chose to keep awake this session. Toggle off => LPM is ignored entirely.
+            if lowPowerAutoOffEnabled && ProcessInfo.processInfo.isLowPowerModeEnabled && !userForcedOn {
+                turnOffFromSafetyNet("Low Power Mode on. \(appDisplayName) turned off.")
+                return
+            }
+        }
+
+        enforceInternetCutoff()
+        enforceAgentCutoff()
+    }
+
+    private func enforceInternetCutoff() {
+        guard internetAutoOffEnabled else { noInternetSince = nil; return }
+        if lastInternetReachable {
+            noInternetSince = nil
             return
         }
-        // Low Power Mode auto-off, UNLESS the user deliberately chose to keep awake this session.
-        if ProcessInfo.processInfo.isLowPowerModeEnabled && !userForcedOn {
-            setDisableSleep(false)
-            applyUI(on: readSleepDisabled())
-            notify("Low Power Mode on. Sleepless turned off.")
+        let since = noInternetSince ?? Date()
+        noInternetSince = since
+        if Date().timeIntervalSince(since) >= cutoffGraceInterval {
+            noInternetSince = nil
+            turnOffFromSafetyNet("No internet connection. \(appDisplayName) turned off.")
         }
+    }
+
+    private func enforceAgentCutoff() {
+        guard agentAutoOffEnabled else { noAgentsSince = nil; return }
+        if lastAgentSnapshots.isEmpty {
+            agentAutoOffEnabled = false
+            UserDefaults.standard.set(false, forKey: agentAutoOffKey)
+            noAgentsSince = nil
+            renderAgentSection()
+            notify("No supported agent tools found. Agent auto-off was disabled.")
+            return
+        }
+        let healthy = lastAgentSnapshots.filter { $0.status != .setupNeeded }
+        guard !healthy.isEmpty else { noAgentsSince = nil; return }
+        if healthy.contains(where: { $0.status == .active }) {
+            noAgentsSince = nil
+            return
+        }
+        let since = noAgentsSince ?? Date()
+        noAgentsSince = since
+        if Date().timeIntervalSince(since) >= cutoffGraceInterval {
+            noAgentsSince = nil
+            turnOffFromSafetyNet("No agents running. \(appDisplayName) turned off.")
+        }
+    }
+
+    private func turnOffFromSafetyNet(_ message: String) {
+        setDisableSleep(false)
+        applyUI(on: readSleepDisabled())
+        notify(message)
     }
 
     // MARK: - Readers (no root needed)
     private func readSleepDisabled() -> Bool {
-        let out = runCapture("/usr/bin/pmset", ["-g"])
-        for line in out.split(whereSeparator: { $0 == "\n" }) {
-            if line.range(of: "SleepDisabled", options: .caseInsensitive) != nil {
-                let toks = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
-                if let last = toks.last { return last == "1" }
-            }
-        }
-        return false   // line absent -> OFF
+        power.readSleepDisabled()
     }
 
     private func batteryStatus() -> (onBattery: Bool, discharging: Bool, percent: Int) {
-        let out = runCapture("/usr/bin/pmset", ["-g", "batt"])
-        let onBattery = out.contains("Battery Power")
-        let discharging = out.range(of: "discharging", options: .caseInsensitive) != nil
-        var percent = 100
-        for tok in out.split(whereSeparator: { " \t\n;".contains($0) }) {
-            if tok.hasSuffix("%"), let v = Int(tok.dropLast()) { percent = v; break }
-        }
-        return (onBattery, discharging, percent)
+        let status = power.batteryStatus()
+        return (status.onBattery, status.discharging, status.percent)
     }
 
     // MARK: - Notification (mirrors Nexus' osascript approach)
     private func notify(_ message: String) {
-        let script = "display notification \"\(message)\" with title \"Sleepless\" sound name \"Tink\""
-        _ = runCapture("/usr/bin/osascript", ["-e", script])
+        let script = "display notification \(appleScriptStringLiteral(message)) with title \(appleScriptStringLiteral(appDisplayName)) sound name \(appleScriptStringLiteral("Tink"))"
+        _ = ShellRunner.capture("/usr/bin/osascript", ["-e", script])
     }
 
-    // MARK: - Process runner (explicit PATH/HOME; captures stdout)
-    @discardableResult
-    private func runCapture(_ launchPath: String, _ args: [String]) -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: launchPath)
-        process.arguments = args
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
-        env["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
-        process.environment = env
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        do { try process.run() }
-        catch { NSLog("Sleepless: failed to launch %@: %@", launchPath, error.localizedDescription); return "" }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return String(data: data, encoding: .utf8) ?? ""
+    private func appleScriptStringLiteral(_ s: String) -> String {
+        let escaped = s
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\n", with: "\\n")
+        return "\"\(escaped)\""
     }
 
     @objc private func quit() { NSApp.terminate(nil) }

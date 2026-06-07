@@ -132,11 +132,11 @@ Self-post; promotion is welcomed here. Lead with the demo GIF.
 ### r/swift
 Frame as an engineering write-up (90/10 etiquette: mostly substance, light promo). Read the
 sidebar first.
-> **Title:** How I keep a MacBook awake lid-closed from a single-file AppKit menu-bar app (`pmset disablesleep` + a scoped sudoers grant)
+> **Title:** How I keep a MacBook awake lid-closed from a tiny AppKit menu-bar app (`pmset disablesleep` + a scoped sudoers grant)
 > **Body:** A short write-up of the mechanism (`pmset disablesleep` sets the kernel
 > `SleepDisabled` flag, unlike `caffeinate` which can't override lid-close), how a GUI app runs
 > it passwordless via a tightly scoped `/etc/sudoers.d` rule (two exact commands, no wildcards),
-> and the Swift 6 single-file `@main` setup. Source: https://github.com/Aboudjem/Sleepless
+> and the small native Swift/AppKit setup. Source: https://github.com/Aboudjem/Sleepless
 
 ### MacRumors macOS Apps forum
 Evergreen thread, ranks in Google. Post in the macOS Apps forum with the demo + a short,
