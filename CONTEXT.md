@@ -14,7 +14,7 @@
 - **Agent setup**: A per-tool action in the controls popover that sets up required app-wide integrations or prompts for required permission. Detailed explanation lives in documentation rather than a setup wizard.
 - **No agent tools available**: The state where Sleepless Agents finds no monitored agent tools. The controls popover explains that no supported agent tools were found, and agent auto-off is unavailable.
 - **Controls popover**: The single menu-bar popover where Sleepless Agents exposes keep-awake controls, safety cutoffs, and monitored agent status.
-- **Agent coffee logo**: The robot-with-coffee brand mark used for app and marketing identity. The menu bar uses a simplified monochrome template glyph derived from the same idea.
+- **Agent robot logo**: The AI/chatbot robot brand mark (white "helmet" head with a lavender visor, big eyes, straight vertical knob-tipped antennae, and side ears, on a purple plate) used for app and marketing identity. The menu bar uses a simplified monochrome template glyph (a bold, filled robot face with little ears, no antennae) derived from the same idea.
 - **Native lightweight app**: Sleepless Agents remains a small native macOS menu-bar app, but implementation may be split across focused Swift files when features are too broad for a single source file.
 - **No internet connection**: A sustained inability to reach the public internet across consecutive checks, determined from macOS network path status plus a lightweight HTTPS reachability probe.
 - **Realtime agent status**: A visible status that updates every two seconds while the user is looking at the controls.

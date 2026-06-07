@@ -21,8 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Split the native app into focused Swift files for power control, command execution,
   agent monitoring, and connectivity monitoring.
-- Updated the app identity toward an agent/robot having coffee while keeping the
-  menu-bar mark monochrome and template-safe.
+- Redesigned the app identity around a friendly AI/chatbot robot on a purple plate (a
+  white "helmet" head with a lavender visor, big eyes, side ears, and straight, vertical
+  knob-tipped antennae). The menu-bar mark stays a monochrome, template-safe robot — now a
+  bold, filled face with little ears (no antennae) that fills the bar and reads clearly —
+  whose state reads from the eyes alone: gently closed when off (the Mac sleeps normally),
+  open when keeping the Mac awake, and open with a small dot when awake on battery (the
+  auto-off safety net is live).
 
 ## [1.2.7] - 2026-06-03
 

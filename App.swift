@@ -16,9 +16,10 @@
 // agent status, the battery-floor slider, a Launch-at-login switch, and Quit. The
 // menu-bar glyph also shows state at a glance.
 //
-// The menu-bar mark is deliberately simple: an outline agent means the Mac sleeps
-// normally, a filled agent means it is being kept awake, and a filled agent with a
-// small dot means it is awake on battery with the auto-off safety net live.
+// The menu-bar mark is a tiny robot whose eyes read at a glance: asleep (gently closed
+// eyes) means the Mac sleeps normally, awake (open eyes) means it is being kept awake,
+// and an awake robot with a small dot means it is awake on battery with the auto-off
+// safety net live.
 //
 // Several fail-safe features layer on top, none of which adds a daemon or
 // persists OS state (so "reboot resets it" still holds):
@@ -56,50 +57,91 @@ private let appDisplayName = "Sleepless Agents"
 private let sudoersDropInPath = "/etc/sudoers.d/sleepless-disablesleep"
 private let sudoersCommandGrant = "ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
 
-// MARK: - Menu-bar agent glyph (native SF Symbols, MONOCHROME template — state by SHAPE)
+// MARK: - Menu-bar robot glyph (hand-drawn MONOCHROME template — state by EXPRESSION)
 // macOS convention: a menu-bar extra is a template image (no colour) so it adapts to light/dark
-// bars and inverts on highlight. State is read from the SILHOUETTE, not colour. The old
-// empty-vs-filled cups looked near-identical at 16 px, so we switch the silhouette dramatically
-// with an agent/robot silhouette:
-//   OFF   (sleeps normally)        = robot outline
-//   ON    (kept awake, on power)   = filled robot
-//   ARMED (kept awake, on battery) = filled robot + a small dot (auto-off safety net live)
-// All template (monochrome); if the robot symbol is unavailable, the coffee-cup glyph is used.
+// bars and inverts on highlight. We draw a BOLD, FILLED robot silhouette (a solid head that fills
+// the bar height, with negative-space eyes + smile + little side ears) so it stays clear and
+// legible at menu-bar size — thin outlines read as faint and fuzzy. The FACE communicates state,
+// matching the app icon's robot identity:
+//   OFF   (sleeps normally)        = robot asleep — gently closed eyes
+//   ON    (kept awake, on power)   = robot awake — open round eyes
+//   ARMED (kept awake, on battery) = awake robot + a small dot (auto-off safety net live)
+// Drawn from vectors (not SF Symbols, which have no robot glyph) so it re-renders crisply at the
+// menu bar's backing scale.
 enum SleepGlyph {
     case off
     case on
     case armed
 }
 
-private func makeCupGlyph(_ glyph: SleepGlyph) -> NSImage {
-    let cfg = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular).applying(.init(scale: .medium))
-    let name = (glyph == .off) ? "robot" : "robot.fill"
-    let fallback = (glyph == .off) ? "cup.and.saucer" : "cup.and.heat.waves.fill"
-    let base = NSImage(systemSymbolName: name, accessibilityDescription: appDisplayName)?
-        .withSymbolConfiguration(cfg)
-        ?? NSImage(systemSymbolName: fallback, accessibilityDescription: appDisplayName)?
-            .withSymbolConfiguration(cfg)
-        ?? NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: appDisplayName)
-        ?? NSImage()
+private func makeRobotGlyph(_ glyph: SleepGlyph) -> NSImage {
+    let asleep = (glyph == .off)
+    let showDot = (glyph == .armed)
+    // A bold, filled robot face that nearly fills the canvas height so it reads clearly in the
+    // bar. State reads from the EYES — open round dots when awake, gently closed slits when asleep.
+    let W: CGFloat = 19
+    let H: CGFloat = 17
 
-    guard glyph == .armed else {
-        base.isTemplate = true
-        return base
+    // A thin downward-curving crescent (used as a negative-space hole for closed eyes / smile).
+    func crescent(_ cx: CGFloat, _ cy: CGFloat, halfW: CGFloat, thick: CGFloat) -> CGPath {
+        let p = CGMutablePath()
+        let l = CGPoint(x: cx - halfW, y: cy)
+        let r = CGPoint(x: cx + halfW, y: cy)
+        p.move(to: l)
+        p.addQuadCurve(to: r, control: CGPoint(x: cx, y: cy - thick))  // bottom edge (lower)
+        p.addQuadCurve(to: l, control: CGPoint(x: cx, y: cy))          // top edge (back)
+        p.closeSubpath()
+        return p
     }
-    // ARMED: full steaming cup + a small filled dot top-right (the "auto-off safety net is live"
-    // mark). Drawn in template black so it tints + inverts with the menu bar exactly like the cup.
-    let size = base.size
-    guard size.width > 0, size.height > 0 else { base.isTemplate = true; return base }
-    let composed = NSImage(size: size)
-    composed.lockFocus()
-    base.draw(in: NSRect(origin: .zero, size: size))
-    let d = max(size.height * 0.26, 4)
-    let dot = NSBezierPath(ovalIn: NSRect(x: size.width - d, y: size.height - d, width: d, height: d))
-    NSColor.black.setFill()
-    dot.fill()
-    composed.unlockFocus()
-    composed.isTemplate = true
-    return composed
+
+    let img = NSImage(size: NSSize(width: W, height: H), flipped: false) { _ in
+        guard let cg = NSGraphicsContext.current?.cgContext else { return true }
+        cg.setFillColor(NSColor.black.cgColor)
+
+        // Big, central head (a soft, helmet-like rounded square) that fills the bar height.
+        let headW: CGFloat = 13.0, headH: CGFloat = 13.0
+        let head = CGRect(x: (W - headW) / 2, y: (H - headH) / 2 - 0.2, width: headW, height: headH)
+        let corner = headW * 0.32
+        let midX = head.midX
+
+        // Ears: little rounded nubs on each side at head mid-height (no antennae). Filled so
+        // they merge into the silhouette.
+        let earW: CGFloat = 2.0, earH: CGFloat = 5.2
+        func earRect(_ sign: CGFloat) -> CGRect {
+            let ex = sign < 0 ? head.minX - earW * 0.55 : head.maxX - earW * 0.45
+            return CGRect(x: ex, y: head.midY - earH / 2, width: earW, height: earH)
+        }
+        for sign in [-1.0, 1.0] as [CGFloat] {
+            cg.addPath(CGPath(roundedRect: earRect(sign), cornerWidth: earW / 2, cornerHeight: earW / 2, transform: nil))
+        }
+        cg.fillPath()
+
+        // Head silhouette with negative-space eyes + smile punched out via even-odd fill.
+        let p = CGMutablePath()
+        p.addPath(CGPath(roundedRect: head, cornerWidth: corner, cornerHeight: corner, transform: nil))
+        let eyeDX: CGFloat = 2.9
+        let eyeY = head.midY + 1.0
+        if asleep {
+            for s in [-eyeDX, eyeDX] { p.addPath(crescent(midX + s, eyeY + 0.3, halfW: 1.9, thick: 1.1)) }
+        } else {
+            let r: CGFloat = 1.85
+            for s in [-eyeDX, eyeDX] {
+                p.addEllipse(in: CGRect(x: midX + s - r, y: eyeY - r, width: r * 2, height: r * 2))
+            }
+        }
+        p.addPath(crescent(midX, head.midY - 2.6, halfW: 2.7, thick: 1.05))   // smile
+        cg.addPath(p)
+        cg.fillPath(using: .evenOdd)
+
+        // ARMED: a small filled dot at the top-right corner (auto-off safety net live).
+        if showDot {
+            let d: CGFloat = 3.0
+            cg.fillEllipse(in: CGRect(x: W - d - 0.2, y: H - d - 0.2, width: d, height: d))
+        }
+        return true
+    }
+    img.isTemplate = true
+    return img
 }
 
 // Flipped container so popover content lays out top-down with simple frames.
@@ -156,22 +198,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let connectivityMonitor = ConnectivityMonitor()
     private var statusItem: NSStatusItem!
     private var timer: Timer?
-    private let onGlyph = makeCupGlyph(.on)
-    private let offGlyph = makeCupGlyph(.off)
-    private let armedGlyph = makeCupGlyph(.armed)
+    private let onGlyph = makeRobotGlyph(.on)
+    private let offGlyph = makeRobotGlyph(.off)
+    private let armedGlyph = makeRobotGlyph(.armed)
 
     // Popover UI
     private let popover = NSPopover()
     private var toggleSwitch: NSSwitch!
     private var mainCard: CardView!         // group-1 card; gets the brand-violet wash when awake
-    private var headerMark: NSImageView!    // header coffee mark; tints violet when awake
+    private var headerMark: NSImageView!    // header robot mark; tints violet when awake
     private var captionLabel: NSTextField!
     private var floorValueLabel: NSTextField!
     private var floorSlider: NSSlider!
     private var autoOffControl: NSSegmentedControl!
     private var countdownLabel: NSTextField!
     private var internetSwitch: NSSwitch!
-    private var internetStatusLabel: NSTextField!
     private var agentAutoOffSwitch: NSSwitch!
     private var agentSummaryLabel: NSTextField!
     private var agentEmptyLabel: NSTextField!
@@ -199,7 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var timerEndDate: Date?
 
     private let popoverWidth: CGFloat = 360
-    private let popoverHeight: CGFloat = 632
+    private let popoverHeight: CGFloat = 588
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -237,11 +278,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         root.blendingMode = .behindWindow
         root.state = .followsWindowActiveState
 
-        // Header: small agent mark + app name (quiet system glyph, not a branded logo).
-        // The mark tints to the brand violet while the Mac is kept awake.
-        let mark = NSImageView(frame: NSRect(x: pad, y: 14, width: 18, height: 18))
-        let headerCup = makeCupGlyph(.on); headerCup.isTemplate = true
-        mark.image = headerCup
+        // Header: small robot mark + app name. The mark tints to the brand violet while
+        // the Mac is kept awake (an awake robot face — matching the app icon identity).
+        let mark = NSImageView(frame: NSRect(x: pad, y: 13, width: 19, height: 18))
+        let headerRobot = makeRobotGlyph(.on); headerRobot.isTemplate = true
+        mark.image = headerRobot
         mark.contentTintColor = .labelColor
         root.addSubview(mark)
         headerMark = mark
@@ -261,7 +302,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let swH = swProto.height > 0 ? swProto.height : 21
 
         // GROUP 1 — main switch + state caption
-        let g1y: CGFloat = 46, g1h: CGFloat = 84
+        let g1y: CGFloat = 46, g1h: CGFloat = 78
         let g1 = makeCard(NSRect(x: pad, y: g1y, width: contentW, height: g1h))
         mainCard = g1
         let rowLabel = makeLabel("Keep awake with lid closed", font: .systemFont(ofSize: 13), color: .labelColor)
@@ -273,7 +314,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toggleSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
         g1.addSubview(toggleSwitch)
         captionLabel = makeLabel("", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
-        captionLabel.frame = NSRect(x: ci, y: ci + 30, width: cw, height: 32)
+        captionLabel.frame = NSRect(x: ci, y: ci + 28, width: cw, height: 30)
         captionLabel.usesSingleLineMode = false
         captionLabel.lineBreakMode = .byWordWrapping
         captionLabel.maximumNumberOfLines = 2
@@ -281,7 +322,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         g1.addSubview(captionLabel)
 
         // GROUP 2 — auto-off timer (label + segmented [Off | 1h | 2h] + countdown)
-        let g2y = g1y + g1h + 10, g2h: CGFloat = 70
+        let g2y = g1y + g1h + 10, g2h: CGFloat = 58
         let g2 = makeCard(NSRect(x: pad, y: g2y, width: contentW, height: g2h))
         let timerLabel = makeLabel("Auto-off timer", font: .systemFont(ofSize: 13), color: .labelColor)
         timerLabel.frame = NSRect(x: ci, y: ci, width: 110, height: 22)
@@ -298,13 +339,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         autoOffControl.frame = NSRect(x: contentW - ci - segW, y: ci - 1, width: segW, height: max(segSize.height, 24))
         g2.addSubview(autoOffControl)
         countdownLabel = makeLabel("", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
-        countdownLabel.frame = NSRect(x: ci, y: ci + 32, width: cw, height: 16)
+        countdownLabel.frame = NSRect(x: ci, y: ci + 26, width: cw, height: 16)
         g2.addSubview(countdownLabel)
 
         // GROUP 3 — agents (only installed/detectable tools are shown)
-        let g3y = g2y + g2h + 10, g3h: CGFloat = 134
+        let g3y = g2y + g2h + 10, g3h: CGFloat = 140
         let g3 = makeCard(NSRect(x: pad, y: g3y, width: contentW, height: g3h))
-        let agentsLabel = makeLabel("Agents", font: .systemFont(ofSize: 13), color: .labelColor)
+        let agentsLabel = makeLabel("Auto-off when agents are idle", font: .systemFont(ofSize: 13), color: .labelColor)
         agentsLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
         g3.addSubview(agentsLabel)
         agentAutoOffSwitch = NSSwitch()
@@ -336,7 +377,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // GROUP 4 — internet auto-off
-        let g4y = g3y + g3h + 10, g4h: CGFloat = 58
+        let g4y = g3y + g3h + 10, g4h: CGFloat = 46
         let g4 = makeCard(NSRect(x: pad, y: g4y, width: contentW, height: g4h))
         let internetLabel = makeLabel("Auto-off at no internet", font: .systemFont(ofSize: 13), color: .labelColor)
         internetLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
@@ -347,12 +388,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         internetSwitch.state = internetAutoOffEnabled ? .on : .off
         internetSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
         g4.addSubview(internetSwitch)
-        internetStatusLabel = makeLabel("", font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
-        internetStatusLabel.frame = NSRect(x: ci, y: ci + 26, width: cw, height: 16)
-        g4.addSubview(internetStatusLabel)
 
         // GROUP 5 — battery-floor (label + value + slider + min/max hints)
-        let g5y = g4y + g4h + 10, g5h: CGFloat = 86
+        let g5y = g4y + g4h + 10, g5h: CGFloat = 80
         let g5 = makeCard(NSRect(x: pad, y: g5y, width: contentW, height: g5h))
         let floorLabel = makeLabel("Auto-off at low battery", font: .systemFont(ofSize: 13), color: .labelColor)
         floorLabel.frame = NSRect(x: ci, y: ci, width: cw - 54, height: 18)
@@ -365,14 +403,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                target: self, action: #selector(floorSliderChanged(_:)))
         floorSlider.isContinuous = true
         floorSlider.controlSize = .regular
-        floorSlider.frame = NSRect(x: ci, y: ci + 24, width: cw, height: 20)
+        floorSlider.frame = NSRect(x: ci, y: ci + 22, width: cw, height: 20)
         g5.addSubview(floorSlider)
         let minHint = makeLabel("\(floorMin)%", font: .systemFont(ofSize: 10), color: .tertiaryLabelColor)
-        minHint.frame = NSRect(x: ci, y: ci + 48, width: 34, height: 13)
+        minHint.frame = NSRect(x: ci, y: ci + 44, width: 34, height: 13)
         g5.addSubview(minHint)
         let maxHint = makeLabel("\(floorMax)%", font: .systemFont(ofSize: 10), color: .tertiaryLabelColor)
         maxHint.alignment = .right
-        maxHint.frame = NSRect(x: contentW - ci - 34, y: ci + 48, width: 34, height: 13)
+        maxHint.frame = NSRect(x: contentW - ci - 34, y: ci + 44, width: 34, height: 13)
         g5.addSubview(maxHint)
 
         // GROUP 6 — launch at login (off by default; never auto-enables sleep prevention)
@@ -412,7 +450,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return t
     }
 
-    // MARK: - Click the menu-bar cup to open/close the popover
+    // MARK: - Click the menu-bar robot to open/close the popover
     @objc private func statusClicked() {
         if popover.isShown { closePopover() } else { openPopover() }
     }
@@ -538,8 +576,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
-    // A brief, subtle pulse on the menu-bar glyph whenever the state (and thus the cup
-    // shape) changes, so the change is noticeable. Opacity-only: no layer geometry is
+    // A brief, subtle pulse on the menu-bar glyph whenever the state (and thus the robot
+    // expression) changes, so the change is noticeable. Opacity-only: no layer geometry is
     // mutated, so it can't shift the status item on any macOS version.
     private func pulseStatusItem() {
         guard let b = statusItem.button else { return }
@@ -754,10 +792,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func renderInternetSection() {
         internetSwitch?.state = internetAutoOffEnabled ? .on : .off
-        internetStatusLabel?.stringValue = lastInternetReachable
-            ? "Internet reachable"
-            : "Internet not reachable"
-        internetStatusLabel?.textColor = lastInternetReachable ? .secondaryLabelColor : .systemOrange
     }
 
     // MARK: - Launch at login (Feature 2) — OFF by default; never re-enables sleep prevention
@@ -785,7 +819,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         isOn = on
         if !on { cancelKeepAwakeTimer() }   // going OFF clears any countdown/timer
         // ARMED = kept awake while actively discharging on battery, so the
-        // auto-off safety net is live. Distinct menu-bar glyph (cup + dot).
+        // auto-off safety net is live. Distinct menu-bar glyph (awake robot + dot).
         var armed = false
         if on {
             let (onBattery, discharging, _) = batteryStatus()
@@ -793,7 +827,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if let button = statusItem.button {
             let newImage = on ? (armed ? armedGlyph : onGlyph) : offGlyph
-            if button.image !== newImage {   // state (cup shape) changed -> swap + pulse
+            if button.image !== newImage {   // state (robot expression) changed -> swap + pulse
                 button.image = newImage
                 pulseStatusItem()
             }

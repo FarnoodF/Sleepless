@@ -1,9 +1,10 @@
 // Sleepless app icon generator (native, AppKit-rendered).
 //
-// Renders a simple agent/robot having coffee on a continuous-curvature ("squircle")
-// Liquid-Glass plate carrying the brand's indigo -> violet -> fuchsia gradient.
-// The Dock/Finder icon can carry the full robot-with-coffee identity; the menu bar
-// still uses a simplified monochrome template glyph so it stays legible at 16 px.
+// Renders a friendly AI/chatbot robot — white "helmet" head with a lavender visor,
+// two big eyes, knob-tipped antennae and side ears — on a continuous-curvature
+// ("squircle") Liquid-Glass plate carrying the brand's purple gradient. The
+// Dock/Finder icon carries the full robot identity; the menu bar still uses a
+// simplified monochrome template glyph so it stays legible at 16 px.
 // Each iconset size is rendered directly from vector shapes (no raster downscaling).
 //
 // Build + run:  swiftc -O -framework AppKit make-icon.swift -o /tmp/mkicon && /tmp/mkicon [outDir]
@@ -13,12 +14,12 @@
 // (No hardcoded paths, so it works from any clone — build.sh passes a temp dir.)
 import AppKit
 
-// ---- Brand palette (2026 redesign): indigo -> violet -> fuchsia diagonal gradient,
+// ---- Brand palette (2026 redesign): a violet -> deep-purple diagonal gradient,
 // lighter at the top-left so it harmonises with the system's icon lighting. The
-// white cup reads cleanly on top; the violet mid-stop matches the popover accent.
-let plateTop = NSColor(srgbRed: 124/255.0, green: 140/255.0, blue: 255/255.0, alpha: 1) // #7C8CFF light indigo
+// white robot reads cleanly on top; the violet mid-stop matches the popover accent.
+let plateTop = NSColor(srgbRed: 167/255.0, green: 139/255.0, blue: 250/255.0, alpha: 1) // #A78BFA light violet
 let plateMid = NSColor(srgbRed: 139/255.0, green:  92/255.0, blue: 246/255.0, alpha: 1) // #8B5CF6 violet
-let plateBot = NSColor(srgbRed: 192/255.0, green:  38/255.0, blue: 211/255.0, alpha: 1) // #C026D3 fuchsia/magenta
+let plateBot = NSColor(srgbRed: 109/255.0, green:  40/255.0, blue: 217/255.0, alpha: 1) // #6D28D9 deep purple
 
 let outDir = CommandLine.arguments.count > 1
     ? CommandLine.arguments[1]
@@ -56,8 +57,8 @@ func renderIcon(_ S: CGFloat) -> NSBitmapImageRep {
     let plate = CGRect(x: gutter, y: gutter, width: S - 2 * gutter, height: S - 2 * gutter)
     let path = squirclePath(rect: plate)
 
-    // Plate fill: indigo -> violet -> fuchsia diagonal gradient (lighter top-left,
-    // deeper bottom-right) so it agrees with the system icon lighting.
+    // Plate fill: light-violet -> violet -> deep-purple diagonal gradient (lighter
+    // top-left, deeper bottom-right) so it agrees with the system icon lighting.
     cg.saveGState()
     cg.addPath(path); cg.clip()
     let cs = CGColorSpaceCreateDeviceRGB()
@@ -65,8 +66,8 @@ func renderIcon(_ S: CGFloat) -> NSBitmapImageRep {
         colors: [plateTop.cgColor, plateMid.cgColor, plateBot.cgColor] as CFArray,
         locations: [0, 0.5, 1])!
     cg.drawLinearGradient(grad,
-        start: CGPoint(x: plate.minX, y: plate.maxY),   // top-left (light indigo)
-        end:   CGPoint(x: plate.maxX, y: plate.minY),   // bottom-right (deep fuchsia)
+        start: CGPoint(x: plate.minX, y: plate.maxY),   // top-left (light violet)
+        end:   CGPoint(x: plate.maxX, y: plate.minY),   // bottom-right (deep purple)
         options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
 
     // Soft top-left glass sheen (specular highlight, radial white), clipped to plate.
@@ -77,7 +78,7 @@ func renderIcon(_ S: CGFloat) -> NSBitmapImageRep {
     cg.drawRadialGradient(sheen, startCenter: gc, startRadius: 0,
                           endCenter: gc, endRadius: plate.width * 0.66, options: [])
 
-    // Faint white "lit from within" glow behind the cup for depth.
+    // Faint white "lit from within" glow behind the robot for depth.
     let glow = CGGradient(colorsSpace: cs,
         colors: [NSColor(white: 1, alpha: 0.12).cgColor, NSColor(white: 1, alpha: 0).cgColor] as CFArray,
         locations: [0, 1])!
@@ -87,83 +88,90 @@ func renderIcon(_ S: CGFloat) -> NSBitmapImageRep {
 
     cg.restoreGState()
 
-    // Robot head: broad, friendly, and legible at Dock sizes.
-    let head = CGRect(x: plate.midX - plate.width * 0.27,
-                      y: plate.midY - plate.height * 0.10,
-                      width: plate.width * 0.48,
-                      height: plate.height * 0.34)
-    let corner = plate.width * 0.075
+    // ---- AI / chatbot robot: a friendly white "helmet" head with a lavender visor,
+    // two big eyes, side ears, and short antennae that stick OUT of the ears. The
+    // antennae sit on the sides (not above the head) so the face reads big and central.
+    let pw = plate.width, ph = plate.height
+    let cx = plate.midX
+    let cy = plate.midY
+    let headW = pw * 0.54
+    let headH = ph * 0.54
+    let head = CGRect(x: cx - headW / 2, y: cy - headH / 2, width: headW, height: headH)
+    let headCorner = headW * 0.30             // large radius -> soft, helmet-like silhouette
+
+    // Ears: white rounded tabs on each side at head mid-height.
+    let earW = pw * 0.085
+    let earH = ph * 0.22
+    func earRect(_ sign: CGFloat) -> CGRect {
+        let earX = sign < 0 ? head.minX - earW * 0.45 : head.maxX - earW * 0.55
+        return CGRect(x: earX, y: cy - earH / 2, width: earW, height: earH)
+    }
+
+    // Straight, vertical antennae rising from the ears (knob-tipped). Drawn first so
+    // the ear covers the join and they read as rooted in the ear.
     cg.saveGState()
-    cg.setShadow(offset: CGSize(width: 0, height: -S * 0.008), blur: S * 0.018,
-                 color: NSColor(srgbRed: 0.24, green: 0.08, blue: 0.42, alpha: 0.50).cgColor)
-    cg.addPath(CGPath(roundedRect: head, cornerWidth: corner, cornerHeight: corner, transform: nil))
+    cg.setStrokeColor(NSColor.white.cgColor)
+    cg.setLineWidth(max(pw * 0.020, 1.6))
+    cg.setLineCap(.round)
+    for sign in [-1.0, 1.0] as [CGFloat] {
+        let ear = earRect(sign)
+        let baseX = ear.midX
+        let baseY = ear.maxY - earH * 0.10
+        let tipX  = ear.midX                       // straight up (no outward lean)
+        let tipY  = head.maxY + ph * 0.050          // rises above the head top
+        cg.move(to: CGPoint(x: baseX, y: baseY))
+        cg.addLine(to: CGPoint(x: tipX, y: tipY))
+        cg.strokePath()
+        let knob = pw * 0.060
+        cg.addEllipse(in: CGRect(x: tipX - knob / 2, y: tipY - knob / 2, width: knob, height: knob))
+        NSColor.white.setFill(); cg.fillPath()
+    }
+    cg.restoreGState()
+
+    // Ears drawn over the antenna base.
+    NSColor.white.setFill()
+    for sign in [-1.0, 1.0] as [CGFloat] {
+        let ear = earRect(sign)
+        cg.addPath(CGPath(roundedRect: ear, cornerWidth: earW * 0.45, cornerHeight: earW * 0.45, transform: nil))
+        cg.fillPath()
+    }
+
+    // Head (white) with a soft drop shadow for depth on the glass plate.
+    cg.saveGState()
+    cg.setShadow(offset: CGSize(width: 0, height: -S * 0.010), blur: S * 0.022,
+                 color: NSColor(srgbRed: 0.20, green: 0.06, blue: 0.40, alpha: 0.45).cgColor)
+    cg.addPath(CGPath(roundedRect: head, cornerWidth: headCorner, cornerHeight: headCorner, transform: nil))
     NSColor.white.setFill()
     cg.fillPath()
     cg.restoreGState()
 
-    // Antenna + ears.
-    NSColor.white.withAlphaComponent(0.94).setStroke()
-    cg.setLineWidth(max(S * 0.012, 1.4))
-    cg.setLineCap(.round)
-    cg.move(to: CGPoint(x: head.midX, y: head.maxY))
-    cg.addLine(to: CGPoint(x: head.midX, y: head.maxY + plate.height * 0.09))
-    cg.strokePath()
-    cg.addEllipse(in: CGRect(x: head.midX - plate.width * 0.025,
-                             y: head.maxY + plate.height * 0.085,
-                             width: plate.width * 0.05,
-                             height: plate.width * 0.05))
-    NSColor.white.setFill()
-    cg.fillPath()
-    for dx in [-0.295, 0.215] as [CGFloat] {
-        let ear = CGRect(x: plate.midX + plate.width * dx,
-                         y: head.midY - plate.height * 0.055,
-                         width: plate.width * 0.06,
-                         height: plate.height * 0.11)
-        cg.addPath(CGPath(roundedRect: ear, cornerWidth: plate.width * 0.025, cornerHeight: plate.width * 0.025, transform: nil))
+    // Visor: an inset rounded panel with a subtle lavender -> white vertical gradient.
+    let visor = head.insetBy(dx: headW * 0.135, dy: headH * 0.150)
+    let visorCorner = visor.width * 0.34
+    cg.saveGState()
+    cg.addPath(CGPath(roundedRect: visor, cornerWidth: visorCorner, cornerHeight: visorCorner, transform: nil))
+    cg.clip()
+    let visorGrad = CGGradient(colorsSpace: cs,
+        colors: [NSColor(srgbRed: 214/255.0, green: 204/255.0, blue: 255/255.0, alpha: 1).cgColor,  // top: light lavender
+                 NSColor.white.cgColor] as CFArray,                                                  // bottom: white
+        locations: [0, 1])!
+    cg.drawLinearGradient(visorGrad,
+        start: CGPoint(x: visor.midX, y: visor.maxY),
+        end:   CGPoint(x: visor.midX, y: visor.minY),
+        options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+    cg.restoreGState()
+
+    // Eyes: two big, dark-violet dots centered in the visor.
+    let eye = NSColor(srgbRed: 59/255.0, green: 30/255.0, blue: 120/255.0, alpha: 1)
+    eye.setFill()
+    let eyeR  = headW * 0.075
+    let eyeDX = headW * 0.15
+    let eyeY  = visor.midY + visor.height * 0.02
+    for sign in [-1.0, 1.0] as [CGFloat] {
+        cg.addEllipse(in: CGRect(x: cx + sign * eyeDX - eyeR, y: eyeY - eyeR, width: eyeR * 2, height: eyeR * 2))
         cg.fillPath()
     }
 
-    // Face details are punched in with the plate's dark violet tone.
-    let face = NSColor(srgbRed: 62/255.0, green: 35/255.0, blue: 120/255.0, alpha: 1)
-    face.setFill()
-    for dx in [-0.10, 0.10] as [CGFloat] {
-        cg.addEllipse(in: CGRect(x: head.midX + plate.width * dx - plate.width * 0.028,
-                                 y: head.midY + plate.height * 0.035,
-                                 width: plate.width * 0.056,
-                                 height: plate.width * 0.056))
-        cg.fillPath()
-    }
-    cg.setStrokeColor(face.cgColor)
-    cg.setLineWidth(max(S * 0.010, 1.2))
-    cg.move(to: CGPoint(x: head.midX - plate.width * 0.075, y: head.midY - plate.height * 0.055))
-    cg.addQuadCurve(to: CGPoint(x: head.midX + plate.width * 0.075, y: head.midY - plate.height * 0.055),
-                    control: CGPoint(x: head.midX, y: head.midY - plate.height * 0.095))
-    cg.strokePath()
-
-    // Coffee cup, intentionally simple: white mug with a violet handle and soft steam.
-    let mug = CGRect(x: head.maxX - plate.width * 0.05,
-                     y: head.minY - plate.height * 0.02,
-                     width: plate.width * 0.20,
-                     height: plate.height * 0.13)
-    NSColor.white.setFill()
-    cg.addPath(CGPath(roundedRect: mug, cornerWidth: plate.width * 0.025, cornerHeight: plate.width * 0.025, transform: nil))
-    cg.fillPath()
-    cg.setStrokeColor(NSColor.white.cgColor)
-    cg.setLineWidth(max(S * 0.015, 1.6))
-    let handle = CGRect(x: mug.maxX - plate.width * 0.015,
-                        y: mug.midY - plate.height * 0.035,
-                        width: plate.width * 0.075,
-                        height: plate.height * 0.07)
-    cg.strokeEllipse(in: handle)
-    cg.setStrokeColor(NSColor.white.withAlphaComponent(0.72).cgColor)
-    cg.setLineWidth(max(S * 0.008, 1.0))
-    for dx in [0.0, 0.055] as [CGFloat] {
-        cg.move(to: CGPoint(x: mug.minX + plate.width * (0.055 + dx), y: mug.maxY + plate.height * 0.015))
-        cg.addCurve(to: CGPoint(x: mug.minX + plate.width * (0.075 + dx), y: mug.maxY + plate.height * 0.105),
-                    control1: CGPoint(x: mug.minX + plate.width * (0.02 + dx), y: mug.maxY + plate.height * 0.04),
-                    control2: CGPoint(x: mug.minX + plate.width * (0.12 + dx), y: mug.maxY + plate.height * 0.07))
-        cg.strokePath()
-    }
     NSGraphicsContext.restoreGraphicsState()
     return rep
 }
