@@ -57,6 +57,6 @@ jobs:
       - name: Upload app artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Sleepless-Agents-app
+          name: Sleepless-app
           path: dist/Sleepless.app
           if-no-files-found: error

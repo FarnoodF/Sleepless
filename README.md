@@ -47,7 +47,7 @@
 
 ```sh
 brew install --cask aboudjem/tap/sleepless
-/Applications/Sleepless\ Agents.app/Contents/Resources/grant.sh   # one-time passwordless grant
+/Applications/Sleepless.app/Contents/Resources/grant.sh   # one-time passwordless grant
 ```
 
 | Other ways            |                                                                                                                                                                                                              |
@@ -61,7 +61,7 @@ Then click Sleepless in the menu bar, flip the switch, and close the lid.
 
 |     |                          |                                                                                                  |
 | --- | ------------------------ | ------------------------------------------------------------------------------------------------ |
-| 🤖  | **One switch**           | Click the menu-bar agent, flip the toggle.                                                       |
+| ☕  | **One switch**           | Click the menu-bar cup, flip the toggle.                                                         |
 | ⏲️  | **Auto-off timer**       | 1h or 2h with a live countdown, then off.                                                        |
 | 🔋  | **Battery floor**        | Auto-off at 5–50% on battery (default 15%).                                                      |
 | 🤖  | **Agent-aware auto-off** | Watches local Claude Code, Codex, and Cursor signals, then turns off when no agents are running. |
@@ -71,7 +71,7 @@ Then click Sleepless in the menu bar, flip the switch, and close the lid.
 | 🚀  | **Launch at login**      | Optional, off by default, always starts idle.                                                    |
 | 🪶  | **Tiny + native**        | Small AppKit app. No Dock icon, daemon, kext, UI scraping, or Screen Recording.                  |
 
-**Menu-bar glyph:** outline agent = off · filled agent = awake · filled agent + dot = awake on battery (auto-off live).
+**Menu-bar glyph:** empty cup = off · full cup = awake · full cup + dot = awake on battery (auto-off live).
 
 ## Sleepless vs the alternatives
 

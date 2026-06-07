@@ -49,7 +49,7 @@
 
 ```sh
 brew install --cask aboudjem/tap/sleepless
-/Applications/Sleepless\ Agents.app/Contents/Resources/grant.sh   # one-time passwordless grant
+/Applications/Sleepless.app/Contents/Resources/grant.sh   # one-time passwordless grant
 ```
 
 | 其他方式 | |
