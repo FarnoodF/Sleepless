@@ -36,6 +36,7 @@
 //   File MUST be named App.swift and compiled -parse-as-library so the
 //   @main enum + @MainActor static main() entry is Swift-6 isolation-safe.
 import AppKit
+import Darwin
 import ServiceManagement
 
 // MARK: - Tunables
@@ -45,6 +46,8 @@ private let floorKey = "batteryFloorPercent"
 private let floorDefault = 15
 private let floorMin = 5
 private let floorMax = 50
+private let sudoersDropInPath = "/etc/sudoers.d/sleepless-disablesleep"
+private let sudoersCommandGrant = "ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
 
 // MARK: - Menu-bar coffee glyph (native SF Symbols, MONOCHROME template — state by SHAPE)
 // macOS convention: a menu-bar extra is a template image (no colour) so it adapts to light/dark
@@ -388,9 +391,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // Install the one-time scoped grant via a SINGLE native macOS authorization (the
-    // standard Touch ID / password sheet) — no Terminal. Runs the bundled, audited
-    // grant.sh as root through osascript's "with administrator privileges"; grant.sh is
-    // root-aware so it writes the sudoers drop-in directly with no inner sudo prompt.
+    // standard Touch ID / password sheet) — no Terminal. The privileged script is
+    // generated from constants baked into this binary, not loaded from the mutable app
+    // bundle, then validated with visudo before installation.
     // Returns true once the passwordless grant is in place; after that the app never asks again.
     @discardableResult
     private func installGrantViaAuth() -> Bool {
@@ -403,25 +406,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         guard intro.runModal() == .alertFirstButtonReturn else { return false }
 
-        guard let res = Bundle.main.resourcePath else { return false }
-        let grant = res + "/grant.sh"
-        // Pass the REAL user: under the native auth sheet grant.sh runs as root with
-        // SUDO_USER unset, so without this the grant would be written for "root" (useless).
-        let shellCmd = "SLEEPLESS_USER='\(NSUserName())' /bin/bash '\(grant)' --yes"
-        // escape for an AppleScript string literal, then run with one native auth sheet
-        let escaped = shellCmd.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-        let osa = "do shell script \"\(escaped)\" with administrator privileges"
+        guard let userSpec = sudoersUserSpec() else {
+            notify("Couldn't set up permission: unsupported user ID.")
+            return false
+        }
+
+        let grant = "\(userSpec) \(sudoersCommandGrant)"
+        let installScript = [
+            "set -euo pipefail",
+            "tmp=\"$(/usr/bin/mktemp)\"",
+            "trap '/bin/rm -f \"$tmp\"' EXIT",
+            "/usr/bin/printf '%s\\n' \(shellSingleQuoted(grant)) > \"$tmp\"",
+            "/usr/sbin/visudo -cf \"$tmp\" >/dev/null",
+            "/usr/bin/install -m 0440 -o root -g wheel \"$tmp\" \(shellSingleQuoted(sudoersDropInPath))",
+            "/usr/sbin/visudo -c >/dev/null"
+        ].joined(separator: "; ")
+        let shellCmd = "/bin/bash -c \(shellSingleQuoted(installScript))"
+        let osa = "do shell script \(appleScriptStringLiteral(shellCmd)) with administrator privileges"
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         proc.arguments = ["-e", osa]
-        proc.standardOutput = Pipe(); proc.standardError = Pipe()
-        do { try proc.run(); proc.waitUntilExit() }
+        proc.standardOutput = FileHandle.nullDevice
+        let errPipe = Pipe()
+        proc.standardError = errPipe
+        let errData: Data
+        do {
+            try proc.run()
+            errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+            proc.waitUntilExit()
+        }
         catch { notify("Couldn't start the one-time setup."); return false }
-        if proc.terminationStatus == 0 { return true }   // grant.sh installed the rule successfully
+        if proc.terminationStatus == 0 { return true }   // sudoers drop-in installed successfully
         if proc.terminationStatus != 128 {               // 128 = user cancelled the auth sheet
+            let err = String(data: errData, encoding: .utf8) ?? ""
+            if !err.isEmpty { NSLog("Sleepless setup failed: %@", err) }
             notify("Setup didn't complete. Try again, or run grant.sh from the app bundle.")
         }
         return false
+    }
+
+    private func sudoersUserSpec() -> String? {
+        let uid = getuid()
+        guard uid > 0 else { return nil }
+        return "#\(uid)"
+    }
+
+    private func shellSingleQuoted(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     // A brief, subtle pulse on the menu-bar glyph whenever the state (and thus the cup
@@ -663,8 +694,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Notification (mirrors Nexus' osascript approach)
     private func notify(_ message: String) {
-        let script = "display notification \"\(message)\" with title \"Sleepless\" sound name \"Tink\""
+        let script = "display notification \(appleScriptStringLiteral(message)) with title \(appleScriptStringLiteral("Sleepless")) sound name \(appleScriptStringLiteral("Tink"))"
         _ = runCapture("/usr/bin/osascript", ["-e", script])
+    }
+
+    private func appleScriptStringLiteral(_ s: String) -> String {
+        let escaped = s
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\n", with: "\\n")
+        return "\"\(escaped)\""
     }
 
     // MARK: - Process runner (explicit PATH/HOME; captures stdout)

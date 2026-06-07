@@ -36,18 +36,21 @@ reality rather than assuming the command worked.
 ## The passwordless grant — exactly what it permits
 
 A GUI app has no terminal to type a password into, so Sleepless runs `pmset` through a
-tightly scoped `/etc/sudoers.d` drop-in. `install.sh` writes this (with your username
-substituted for `__USER__`), owned `root:wheel`, mode `0440`:
+tightly scoped `/etc/sudoers.d` drop-in. The app's one-time native setup, `install.sh`,
+and `grant.sh` all install the same rule (with your numeric UID substituted for `__UID__`),
+owned `root:wheel`, mode `0440`:
 
 ```
-<you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
+#<your-uid> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
-**This grant lets one user run, as root, exactly two fully-specified commands and nothing
-else.** sudoers matches command arguments *literally* — and this rule contains **no
-wildcards** — so the match is total. From the sudoers manual: *"If a Cmnd has associated
+For example, a typical first local account might install as `#501 ALL=(root) ...`.
+
+**This grant lets one UID run, as root, exactly two fully-specified commands and nothing
+else.** sudoers matches command arguments _literally_ — and this rule contains **no
+wildcards** — so the match is total. From the sudoers manual: _"If a Cmnd has associated
 command line arguments, then the arguments in the Cmnd must match exactly those given by
-the user on the command line (or match the wildcards if there are any)."*
+the user on the command line (or match the wildcards if there are any)."_
 
 Consequences you can rely on:
 
@@ -57,16 +60,21 @@ Consequences you can rely on:
 - Sleepless calls `sudo` with an **argv array**, not a shell string
   (`Process.arguments` in `App.swift`), so there is no `/bin/sh -c`, no command
   substitution, and no word-splitting surface inside the app.
-- There is **no helper script**. The classic sudoers footgun is a *user-writable* script
-  that root executes — rewrite it, get root. Sleepless points the rule directly at Apple's
-  `/usr/bin/pmset`, and the sudoers file itself is `root:wheel 0440` (you cannot modify it
-  without `sudo`). Both mitigations are exactly what the literature prescribes.
+- The ongoing passwordless grant points directly at Apple's `/usr/bin/pmset`, not at a
+  helper script. The classic sudoers footgun is a _user-writable_ script that root executes
+  on every privileged action — rewrite it, get root. Sleepless avoids that: the rule itself
+  is `root:wheel 0440`, has no wildcards, and can only invoke the two `pmset` argument
+  vectors above.
+- During the app's one-time native setup, the root-authenticated command is generated from
+  constants baked into the app binary and validated with `visudo` before installation; it
+  does **not** execute the bundled `grant.sh` as root. `grant.sh` remains available for
+  manual installs from a clone or app bundle.
 
 ## Honest residual risk
 
 The grant is passwordless **by design**: any process already running as your user can flip
 the sleep flag silently. We are not pretending the attack surface is zero. But the worst
-case is *"your Mac was kept awake, or allowed to sleep."* It is **not** data exfiltration
+case is _"your Mac was kept awake, or allowed to sleep."_ It is **not** data exfiltration
 and **not** root code execution — the two pinned arguments to one Apple binary do not
 provide either.
 
@@ -86,7 +94,7 @@ that flips the flag back to `0` while the Mac is awake and discharging, so a for
 ## Code signing, notarization, and Gatekeeper
 
 Sleepless is **ad-hoc signed and not notarized** — it has no paid Apple Developer ID. The
-trust model is *read the source, build it yourself*. (Notarization is also not a malware
+trust model is _read the source, build it yourself_. (Notarization is also not a malware
 guarantee: signed, notarized macOS stealers have shipped.)
 
 - **Build from source (recommended):** locally compiled apps are **not quarantined**, so

@@ -73,9 +73,10 @@ cp "$REPO/grant.sh" "$REPO/uninstall.sh" "$CONTENTS/Resources/"
 chmod +x "$CONTENTS/Resources/grant.sh" "$CONTENTS/Resources/uninstall.sh"
 rm -rf "$BIN_TMP"
 
-# 4. Ad-hoc sign (no Apple Developer ID needed; trust comes from building it yourself).
+# 4. Ad-hoc sign with hardened runtime enabled (no Apple Developer ID needed; trust
+# comes from building it yourself).
 echo "==> Ad-hoc signing"
-codesign --force --deep --sign - "$APP"
+codesign --force --deep --options runtime --sign - "$APP"
 codesign --verify --verbose=1 "$APP" 2>&1 | sed 's/^/    /' || true
 
 echo ""
