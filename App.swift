@@ -13,7 +13,8 @@
 //
 // UI: clicking the menu-bar agent glyph opens a small native popover with an NSSwitch
 // toggle (the System-Settings control), a state caption, auto-off controls, monitored
-// agent status, the battery-floor slider, a Launch-at-login switch, and Quit. The
+// agent status, a Low-Power-Mode auto-off switch, the battery-floor slider, a
+// Launch-at-login switch, and Quit. The
 // menu-bar glyph also shows state at a glance.
 //
 // The menu-bar mark is a tiny robot whose eyes read at a glance: asleep (gently closed
@@ -28,8 +29,9 @@
 //   2. Launch at login (SMAppService.mainApp) — OFF by default. The app always
 //      launches reading the TRUE system state, so a login launch can never
 //      re-enable disablesleep on its own.
-//   3. Low-Power-Mode auto-off — on battery, if Low Power Mode is on, Sleepless
-//      turns itself off. Same shape as the battery floor, evaluated on the same tick.
+//   3. Low-Power-Mode auto-off (user toggle, ON by default) — on battery, if Low Power
+//      Mode is on, Sleepless turns itself off. Evaluated on the same tick as the battery
+//      floor; a deliberate turn-on overrides it for the session (the hard floor never).
 //   4. Agent/internet auto-off — opt-in safety cutoffs with a grace period; they only
 //      turn Sleepless off and never re-arm keep-awake.
 //
@@ -50,6 +52,7 @@ private let cutoffGraceInterval: TimeInterval = 120
 private let floorKey = "batteryFloorPercent"
 private let agentAutoOffKey = "agentAutoOffEnabled"
 private let internetAutoOffKey = "internetAutoOffEnabled"
+private let lpmAutoOffKey = "lowPowerAutoOffEnabled"
 private let floorDefault = 15
 private let floorMin = 5
 private let floorMax = 50
@@ -213,6 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var autoOffControl: NSSegmentedControl!
     private var countdownLabel: NSTextField!
     private var internetSwitch: NSSwitch!
+    private var lowPowerSwitch: NSSwitch!
     private var agentAutoOffSwitch: NSSwitch!
     private var agentSummaryLabel: NSTextField!
     private var agentEmptyLabel: NSTextField!
@@ -222,6 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var batteryFloorPercent = floorDefault
     private var internetAutoOffEnabled = false
     private var agentAutoOffEnabled = false
+    private var lowPowerAutoOffEnabled = true   // ON by default: matches the long-standing safety behavior
     private var isOn = false
     private var userForcedOn = false   // user deliberately turned it on; honor over the Low Power Mode auto-off (the hard battery floor still wins)
     private var lastAgentSnapshots: [AgentToolSnapshot] = []
@@ -240,13 +245,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var timerEndDate: Date?
 
     private let popoverWidth: CGFloat = 360
-    private let popoverHeight: CGFloat = 588
+    private let popoverHeight: CGFloat = 644
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         batteryFloorPercent = min(max((UserDefaults.standard.object(forKey: floorKey) as? Int) ?? floorDefault, floorMin), floorMax)
         internetAutoOffEnabled = UserDefaults.standard.bool(forKey: internetAutoOffKey)
         agentAutoOffEnabled = UserDefaults.standard.bool(forKey: agentAutoOffKey)
+        // Unset => true, so existing installs keep the Low Power Mode safety net they already had.
+        lowPowerAutoOffEnabled = (UserDefaults.standard.object(forKey: lpmAutoOffKey) as? Bool) ?? true
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.image = offGlyph
@@ -389,8 +396,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         internetSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
         g4.addSubview(internetSwitch)
 
+        // GROUP 4b — Low Power Mode auto-off (surfaces the battery-side safety net as a control,
+        // grouped next to the battery floor since both protect a discharging battery)
+        let glpy = g4y + g4h + 10, glph: CGFloat = 46
+        let glp = makeCard(NSRect(x: pad, y: glpy, width: contentW, height: glph))
+        let lpmLabel = makeLabel("Auto-off in Low Power Mode", font: .systemFont(ofSize: 13), color: .labelColor)
+        lpmLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
+        glp.addSubview(lpmLabel)
+        lowPowerSwitch = NSSwitch()
+        lowPowerSwitch.target = self
+        lowPowerSwitch.action = #selector(lowPowerAutoOffToggled(_:))
+        lowPowerSwitch.state = lowPowerAutoOffEnabled ? .on : .off
+        lowPowerSwitch.frame = NSRect(x: contentW - ci - swW, y: ci + (22 - swH) / 2, width: swW, height: swH)
+        glp.addSubview(lowPowerSwitch)
+
         // GROUP 5 — battery-floor (label + value + slider + min/max hints)
-        let g5y = g4y + g4h + 10, g5h: CGFloat = 80
+        let g5y = glpy + glph + 10, g5h: CGFloat = 80
         let g5 = makeCard(NSRect(x: pad, y: g5y, width: contentW, height: g5h))
         let floorLabel = makeLabel("Auto-off at low battery", font: .systemFont(ofSize: 13), color: .labelColor)
         floorLabel.frame = NSRect(x: ci, y: ci, width: cw - 54, height: 18)
@@ -695,6 +716,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         renderInternetSection()
     }
 
+    @objc private func lowPowerAutoOffToggled(_ sender: NSSwitch) {
+        lowPowerAutoOffEnabled = sender.state == .on
+        UserDefaults.standard.set(lowPowerAutoOffEnabled, forKey: lpmAutoOffKey)
+        // Re-evaluate now so enabling it while already in Low Power Mode can take effect this
+        // tick, and the caption's cutoff list updates immediately. A deliberate turn-on this
+        // session (userForcedOn) still wins; the hard battery floor still always wins.
+        refresh()
+    }
+
     @objc private func setupAgentIntegration(_ sender: NSButton) {
         guard sender.tag >= 0, sender.tag < AgentID.allCases.count else { return }
         let id = AgentID.allCases[sender.tag]
@@ -833,7 +863,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             button.toolTip = on
                 ? (armed
-                    ? "\(appDisplayName): on (battery). Auto-off at \(batteryFloorPercent)% or in Low Power Mode."
+                    ? "\(appDisplayName): on (battery). " + (lowPowerAutoOffEnabled
+                        ? "Auto-off at \(batteryFloorPercent)% or in Low Power Mode."
+                        : "Auto-off at \(batteryFloorPercent)%.")
                     : "\(appDisplayName): on. Stays awake with the lid closed.")
                 : "\(appDisplayName): off. Sleeps normally."
         }
@@ -851,10 +883,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func renderText() {
         floorValueLabel?.stringValue = "\(batteryFloorPercent)%"
         if isOn {
-            var cutoffs = ["\(batteryFloorPercent)% battery", "Low Power Mode"]
-            if internetAutoOffEnabled { cutoffs.append("no internet") }
-            if agentAutoOffEnabled { cutoffs.append("no agents") }
-            captionLabel?.stringValue = "Stays awake with the lid closed. Turns off at " + cutoffs.joined(separator: ", ") + "."
+            // Each cutoff is a self-contained phrase so the sentence reads naturally no matter
+            // which optional safety nets are on (the hard battery floor is always present).
+            var cutoffs = ["below \(batteryFloorPercent)% battery"]
+            if lowPowerAutoOffEnabled { cutoffs.append("in Low Power Mode") }
+            if internetAutoOffEnabled { cutoffs.append("with no internet") }
+            if agentAutoOffEnabled { cutoffs.append("with no agents running") }
+            captionLabel?.stringValue = "Stays awake with the lid closed. Turns off " + cutoffs.joined(separator: ", ") + "."
         } else {
             captionLabel?.stringValue = "Sleeps normally when you close the lid."
         }
@@ -884,8 +919,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 userForcedOn = false
                 return
             }
-            // Low Power Mode auto-off, UNLESS the user deliberately chose to keep awake this session.
-            if ProcessInfo.processInfo.isLowPowerModeEnabled && !userForcedOn {
+            // Low Power Mode auto-off (user-controllable; ON by default), UNLESS the user
+            // deliberately chose to keep awake this session. Toggle off => LPM is ignored entirely.
+            if lowPowerAutoOffEnabled && ProcessInfo.processInfo.isLowPowerModeEnabled && !userForcedOn {
                 turnOffFromSafetyNet("Low Power Mode on. \(appDisplayName) turned off.")
                 return
             }

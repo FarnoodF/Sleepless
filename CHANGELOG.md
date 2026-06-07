@@ -14,11 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   grace period.
 - No-internet auto-off: an opt-in cutoff that turns Sleepless off after sustained public
   internet reachability loss.
+- Low Power Mode auto-off is now an explicit switch in the popover (ON by default). The
+  battery-side safety net that was already running silently is now visible and can be
+  turned off if you want to stay awake on battery even in Low Power Mode. The hard battery
+  floor and a deliberate same-session turn-on still behave as before.
 - Local agent-detection documentation and an ADR that rules out UI scraping, Screen
   Recording, broad filesystem searches, and cloud-only monitoring.
 
 ### Changed
 
+- Reworded the "keep awake" caption so each auto-off cutoff reads as a complete phrase
+  ("Turns off below 15% battery, in Low Power Mode, ...") instead of the previous
+  "Turns off at 15% battery, Low Power Mode" fragment.
 - Split the native app into focused Swift files for power control, command execution,
   agent monitoring, and connectivity monitoring.
 - Redesigned the app identity around a friendly AI/chatbot robot on a purple plate (a
