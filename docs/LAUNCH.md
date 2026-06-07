@@ -126,7 +126,7 @@ fresh launch window.
 - **Name:** Sleepless
 - **Tagline (≤60 chars):** `Keep your Mac awake with the lid closed`
 - **Assets:** gallery images **1270×760**, thumbnail **240×240** (reuse the violet brand +
-  coffee cup; `assets/social-preview.png` is a good base), a short demo (use `assets/demo.gif`).
+  coffee-cup mark; `assets/social-preview.png` is a good base), a short demo (use `assets/demo.gif`).
 - **Topics:** Mac, Developer Tools, Productivity, Open Source.
 - **First maker comment:**
 
@@ -171,6 +171,7 @@ fresh launch window.
 ---
 
 ### Reminder
+
 Do not post any of these from an automated process. They require your own accounts and
 ongoing presence in each community. Lead with the demo, be candid about the undocumented
 mechanism and the ad-hoc signing, and respond quickly.

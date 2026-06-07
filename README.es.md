@@ -99,7 +99,7 @@ Luego haz clic en la taza de la barra de menús, activa el interruptor y cierra 
 Sleepless activa `pmset disablesleep` (el indicador `SleepDisabled` del kernel), vuelve a leerlo para que la barra de menús nunca mienta, y lo revierte en tu nivel mínimo de batería, en Low Power Mode, cuando el temporizador termina o al reiniciar. Una app gráfica no puede escribir una contraseña, así que el instalador añade una regla de sudoers de alcance reducido para **exactamente dos comandos**:
 
 ```
-<you> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
+#<your-uid> ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1
 ```
 
 - **No se puede ampliar.** sudoers coincide con los argumentos de forma literal, sin comodines.
