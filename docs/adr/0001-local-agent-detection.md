@@ -1,0 +1,3 @@
+# Local Agent Detection
+
+Sleepless Agents monitors only locally observable coding-agent work: CLI processes, local workers, session signals, or app-wide hook/heartbeat integrations. It deliberately avoids UI scraping, broad filesystem searches, Screen Recording, and cloud-only vendor API monitoring because agent auto-off is a power-control safety feature; guessing from private UI or remote state would be brittle, privacy-sensitive, and easy to misrepresent to users. Tools participate only when Sleepless Agents has a bounded, reliable detector for them, and app-wide integrations are required only when default local detection is not reliable enough.

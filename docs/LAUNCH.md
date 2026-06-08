@@ -52,7 +52,7 @@ fresh launch window.
 - **Qualifies:** you built it, anyone can build/run/inspect it (open source). Good fit.
 - **Title (no caps, no superlatives, no exclamation):**
 
-  `Show HN: Sleepless – keep a Mac awake with the lid closed`
+  `Show HN: Sleepless Agents – keep a Mac awake with the lid closed`
 
 - **Text:**
 
@@ -60,7 +60,7 @@ fresh launch window.
   > lid shut (overnight builds, long downloads, an agent run, sharing a hotspot from my bag)
   > and kept forgetting to turn it back off, which drains the battery and traps heat.
   >
-  > Sleepless is a tiny AppKit menu-bar app that does exactly that one thing: flips
+  > Sleepless Agents is a tiny AppKit menu-bar app that does exactly that one thing: flips
   > `disablesleep` from a native switch, on battery, with no external display, and adds a
   > battery-floor auto-off (default 15%) so a forgotten "on" state can't cook the battery. A
   > reboot also resets it.
@@ -86,7 +86,7 @@ fresh launch window.
 - **Before posting:** read the sidebar + `reddit.com/r/macapps/wiki`, check for a required
   post flair (e.g. a developer/promo flair) and any karma/age gate, and look for a pinned
   promo/megathread. Be an active member first.
-- **Title:** `Sleepless – open-source menu-bar app to keep your Mac awake with the lid closed (on battery, no external display)`
+- **Title:** `Sleepless Agents – open-source menu-bar app to keep your Mac awake with the lid closed (on battery, no external display)`
 - **Body:**
 
   > Open source (MIT). A small menu-bar app that keeps a MacBook awake with the lid closed,
@@ -112,7 +112,7 @@ fresh launch window.
   Sundays** ("Self-promotion Sunday"), as a **self-post** (no bare links). You must have
   **≥5 unrelated posts/comments in r/apple in the past month**, and self-promo must be
   **≤10%** of your activity. Abuse = instant ban. Build that history organically first.
-- **Title:** `[Self-promotion Sunday] Sleepless – keep your Mac awake with the lid closed, on battery (open source)`
+- **Title:** `[Self-promotion Sunday] Sleepless Agents – keep your Mac awake with the lid closed, on battery (open source)`
 - **Body:** reuse the r/macapps body above, plus one line on the security model (passwordless
   sudoers limited to two exact `pmset disablesleep` commands; reboot + battery-floor reset).
 
@@ -123,14 +123,14 @@ fresh launch window.
 - **When:** schedule for **12:01am Pacific**; for a dev tool, a weekend (esp. Sunday) is a
   known lower-competition slot. Prime ~300–400 warm people beforehand; PH amplifies momentum,
   it does not create it. "Launched" is not "Featured" (PH curates the homepage).
-- **Name:** Sleepless
+- **Name:** Sleepless Agents
 - **Tagline (≤60 chars):** `Keep your Mac awake with the lid closed`
 - **Assets:** gallery images **1270×760**, thumbnail **240×240** (reuse the violet brand +
-  coffee cup; `assets/social-preview.png` is a good base), a short demo (use `assets/demo.gif`).
+  agent-robot mark; `assets/social-preview.png` is a good base), a short demo (use `assets/demo.gif`).
 - **Topics:** Mac, Developer Tools, Productivity, Open Source.
 - **First maker comment:**
 
-  > Hi PH. I built Sleepless because I kept dropping to `sudo pmset disablesleep 1` to keep my
+  > Hi PH. I built Sleepless Agents because I kept dropping to `sudo pmset disablesleep 1` to keep my
   > MacBook running with the lid shut (overnight builds, hotspot in my bag) and kept forgetting
   > to turn it off. It is a tiny, open-source menu-bar switch that does just that, on battery,
   > with no external display, plus a battery-floor auto-off so it is safe to forget. Native,
@@ -171,6 +171,7 @@ fresh launch window.
 ---
 
 ### Reminder
+
 Do not post any of these from an automated process. They require your own accounts and
 ongoing presence in each community. Lead with the demo, be candid about the undocumented
 mechanism and the ad-hoc signing, and respond quickly.
