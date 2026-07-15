@@ -12,7 +12,11 @@ APP="/Applications/$APP_NAME.app"
 BUNDLE_ID="com.aboudjem.Sleepless"
 SUDOERS_DST="/etc/sudoers.d/sleepless-disablesleep"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
-USER_NAME="$(id -un)"
+USER_UID="$(id -u)"
+RESET_AGENT_SETUP=0
+if [ ! -d "$APP" ] && [ ! -d "/Applications/Sleepless.app" ]; then
+  RESET_AGENT_SETUP=1
+fi
 
 echo "Sleepless installer"
 echo "==================="
@@ -21,7 +25,7 @@ echo "  1. Build $APP_NAME.app and copy it to /Applications."
 echo "  2. Install a passwordless sudo grant at $SUDOERS_DST so the app can flip"
 echo "     lid-close sleep without prompting. The grant (root:wheel, 0440) is EXACTLY:"
 echo ""
-echo "       $USER_NAME ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
+echo "       #$USER_UID ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1"
 echo ""
 echo "     That is the only thing it permits — turn lid-close sleep on or off. Nothing else."
 echo "  3. Add a login item (~/Library/LaunchAgents/$BUNDLE_ID.plist) so it starts at login."
@@ -56,10 +60,16 @@ PLIST
 launchctl bootout "gui/$(id -u)/$BUNDLE_ID" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENT" 2>/dev/null || true
 
+# Reset per-user agent detector setup on clean installs so uninstall -> install
+# shows setup again instead of trusting stale hooks from a removed app.
+if [ "$RESET_AGENT_SETUP" = "1" ]; then
+  "$REPO/reset-agent-setup.sh"
+fi
+
 # Launch now.
 open "$APP"
 
 echo ""
-echo "✅ Installed. The coffee cup is in your menu bar — click it to toggle."
+echo "✅ Installed. Sleepless is in your menu bar — click it to toggle."
 echo "   Turn ON, close the lid: your Mac stays awake on battery (auto-off at the floor you set)."
 echo "   To remove everything (including the grant): ./uninstall.sh"

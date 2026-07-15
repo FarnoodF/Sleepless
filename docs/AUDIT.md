@@ -2,7 +2,7 @@
 
 Sleepless asks for a narrow slice of root, so it should be easy to check, not taken on
 faith. This page is the practical companion to [SECURITY.md](../SECURITY.md): the latter
-explains *why* the design is safe, this one shows you *how to confirm it yourself* and how
+explains _why_ the design is safe, this one shows you _how to confirm it yourself_ and how
 to verify a download you did not build.
 
 There is no Apple account behind any of this. Every check below is free and runs on your
@@ -10,14 +10,15 @@ machine.
 
 ## Read it in about ten minutes
 
-The whole app is one file. To satisfy yourself it does what it claims and nothing else:
+The app is a small set of Swift files. To satisfy yourself it does what it claims and nothing else, read:
 
-| Read | What you are checking |
-|---|---|
-| [`App.swift`](../App.swift) | The only thing it runs as root is `sudo -n /usr/bin/pmset -a disablesleep 0/1` (`setDisableSleep`). No network calls, no file writes outside `UserDefaults`, no shell strings. |
-| [`sleepless.sudoers.template`](../sleepless.sudoers.template) / [`grant.sh`](../grant.sh) | The passwordless grant permits exactly those two fully-specified commands, no wildcards, installed `root:wheel 0440`. |
-| [`build.sh`](../build.sh) | `swiftc` + a hand-assembled, ad-hoc-signed bundle. No downloaded blobs, no install-time scripts baked into the binary. |
-| [`uninstall.sh`](../uninstall.sh) | Removes the app, the login item, and the sudoers drop-in, then proves `sudo -n pmset …` prompts again. |
+- [`App.swift`](../App.swift) and [`PowerController.swift`](../PowerController.swift): steady-state privilege is only `sudo -n /usr/bin/pmset -a disablesleep 0/1` (`setDisableSleep`). The one-time native setup generates the sudoers drop-in from binary constants, validates it with `visudo`, and does not run bundled scripts as root.
+- [`AgentMonitor.swift`](../AgentMonitor.swift): agent detection is bounded and local-only: CLI validation, known app bundle IDs, user-owned processes, and optional heartbeat files. No UI scraping, Screen Recording, Accessibility, or cloud-agent polling.
+- [`AppLogger.swift`](../AppLogger.swift): setup diagnostics are written only to a small rotating JSON Lines cache under `~/Library/Caches/com.aboudjem.Sleepless/`.
+- [`ConnectivityMonitor.swift`](../ConnectivityMonitor.swift): no-internet auto-off uses macOS network path status plus a lightweight HTTPS reachability probe and does not affect the privileged grant.
+- [`sleepless.sudoers.template`](../sleepless.sudoers.template) and [`grant.sh`](../grant.sh): manual setup path: the passwordless grant permits exactly those two fully-specified commands for the local numeric UID (`#501`-style), has no wildcards, and installs `root:wheel 0440`.
+- [`build.sh`](../build.sh): `swiftc` + a hand-assembled, ad-hoc-signed bundle with hardened runtime enabled. No downloaded blobs, no install-time scripts baked into the binary.
+- [`uninstall.sh`](../uninstall.sh): removes the app, the login item, and the sudoers drop-in, then proves `sudo -n pmset ...` prompts again.
 
 The single privileged file on your system is `/etc/sudoers.d/sleepless-disablesleep`. Read
 it, and `sudo rm` it any time to revoke everything.
@@ -39,7 +40,7 @@ gh attestation verify Sleepless-<version>.zip -R Aboudjem/Sleepless
 What each one proves:
 
 - **`shasum -c`** proves the file was not altered after publishing. It says nothing about
-  *who* built it, so it is necessary but not sufficient on its own.
+  _who_ built it, so it is necessary but not sufficient on its own.
 - **`gh attestation verify`** proves the file came out of this project's release workflow
   (a specific repository + commit + workflow), cryptographically, with no shared secret to
   leak. This is the strong link from "the source you can read" to "the binary you ran." It
@@ -61,11 +62,13 @@ cd Sleepless && git checkout v<version>
 
 # Rebuild the executable with the release's deployment target.
 swiftc -O -parse-as-library -target arm64-apple-macos13.0 \
-  -framework AppKit -framework ServiceManagement App.swift -o /tmp/Sleepless-rebuilt
+  -framework AppKit -framework ServiceManagement -framework Network \
+  ShellRunner.swift PowerController.swift AgentMonitor.swift ConnectivityMonitor.swift App.swift \
+  -o /tmp/Sleepless-rebuilt
 
 # Unzip the release and compare the Mach-O inside the bundle.
 ditto -x -k Sleepless-<version>.zip /tmp/rel
-shasum -a 256 /tmp/Sleepless-rebuilt /tmp/rel/Sleepless.app/Contents/MacOS/Sleepless
+shasum -a 256 /tmp/Sleepless-rebuilt "/tmp/rel/Sleepless.app/Contents/MacOS/Sleepless"
 ```
 
 Caveats, stated honestly:
@@ -74,7 +77,7 @@ Caveats, stated honestly:
   release runner (`macos-latest`). A different compiler version will produce a different,
   still-correct binary. The release job prints its toolchain in the **Toolchain** step so you
   can match it.
-- The **signed** `.app` is only *likely* reproducible: ad-hoc code signatures embed
+- The **signed** `.app` is only _likely_ reproducible: ad-hoc code signatures embed
   non-deterministic data, so compare the unsigned Mach-O above, not the signed bundle. See
   the [Reproducible Builds definition](https://reproducible-builds.org/docs/definition/).
 
@@ -94,11 +97,11 @@ curl -s --request POST --url https://www.virustotal.com/api/v3/files \
 # …then open the returned analysis URL, or just drag the zip onto virustotal.com.
 ```
 
-Note: ad-hoc-signed, unnotarized binaries draw more *heuristic* flags than notarized ones, so
+Note: ad-hoc-signed, unnotarized binaries draw more _heuristic_ flags than notarized ones, so
 read any detection in context. A clean result is reassuring, not absolute; pair it with the
 attestation above.
 
-**Public VirusTotal report (v1.1.0):** https://www.virustotal.com/gui/file/30a43590629b6a3cd2e1610c249c137c4b235a5f319ce8d8a9e866c1fd914cde
+**Public VirusTotal report (v1.1.0):** [VirusTotal permalink](https://www.virustotal.com/gui/file/30a43590629b6a3cd2e1610c249c137c4b235a5f319ce8d8a9e866c1fd914cde)
 
 That is the permalink for the v1.1.0 zip (the SHA-256 matches `SHA256SUMS`). It goes live once the file is submitted to VirusTotal. Browser submission requires a one-time reCAPTCHA, so submit it from your browser (drag the zip onto virustotal.com) or with the API.
 
@@ -115,16 +118,16 @@ xcrun notarytool store-credentials "notarytool-password" \
 
 # Re-sign with a Developer ID cert + hardened runtime + secure timestamp.
 codesign --force --options runtime --timestamp \
-  --sign "Developer ID Application: <Name> (<TeamID>)" Sleepless.app
+  --sign "Developer ID Application: <Name> (<TeamID>)" "Sleepless.app"
 
-ditto -c -k --keepParent Sleepless.app Sleepless.zip
+ditto -c -k --keepParent "Sleepless.app" Sleepless.zip
 xcrun notarytool submit Sleepless.zip --keychain-profile "notarytool-password" --wait
-xcrun stapler staple Sleepless.app
+xcrun stapler staple "Sleepless.app"
 ```
 
 Prerequisite: [Apple Developer Program, $99/yr](https://developer.apple.com/programs/whats-included/),
 and a "Developer ID Application" certificate. Notarization removes the
 "Apple could not verify this app" first-launch block; it does not change anything about how
 the app works. The `/etc/sudoers.d` install step is what makes Sleepless ineligible for the
-Mac App **Store**, but it does not block notarized *direct* distribution (notarization is an
+Mac App **Store**, but it does not block notarized _direct_ distribution (notarization is an
 automated malware scan, not a behavioral policy review).
