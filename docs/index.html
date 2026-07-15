@@ -4,19 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sleepless: keep your Mac awake with the lid closed</title>
-<meta name="description" content="Sleepless keeps your MacBook awake with the lid (the laptop flap) closed, on battery, with no external display. A native menu-bar app using pmset disablesleep, with an auto-off timer and a battery-floor cutoff. Open source, MIT.">
-<link rel="canonical" href="https://aboudjem.github.io/Sleepless/">
+<meta name="description" content="Sleepless keeps your MacBook awake with the lid (the laptop flap) closed, on battery, with no external display. A native menu-bar app using pmset disablesleep, with an auto-off timer, a battery-floor cutoff, and agent-aware auto-off that stops when your AI coding agents finish. Open source, MIT.">
+<link rel="canonical" href="https://farnood.tech/Sleepless/">
 <meta name="theme-color" content="#0A0A14">
 
 <meta property="og:type" content="website">
 <meta property="og:title" content="Sleepless: keep your Mac awake with the lid closed">
 <meta property="og:description" content="Native macOS menu-bar app that keeps your MacBook awake lid-closed, on battery, no external display. pmset disablesleep, done safely. Open source, MIT.">
-<meta property="og:url" content="https://aboudjem.github.io/Sleepless/">
-<meta property="og:image" content="https://aboudjem.github.io/Sleepless/og.png">
+<meta property="og:url" content="https://farnood.tech/Sleepless/">
+<meta property="og:image" content="https://farnood.tech/Sleepless/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Sleepless: keep your Mac awake with the lid closed">
 <meta name="twitter:description" content="Native macOS menu-bar app. Lid closed, on battery, no external display. pmset disablesleep, done safely. Open source, MIT.">
-<meta name="twitter:image" content="https://aboudjem.github.io/Sleepless/og.png">
+<meta name="twitter:image" content="https://farnood.tech/Sleepless/og.png">
 
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
@@ -32,11 +32,11 @@
   "name": "Sleepless",
   "operatingSystem": "macOS 26 (Apple Silicon)",
   "applicationCategory": "UtilitiesApplication",
-  "description": "A native macOS menu-bar app that keeps your MacBook awake with the lid closed, on battery, with no external display, using pmset disablesleep, with an auto-off timer and a battery-floor cutoff.",
+  "description": "A native macOS menu-bar app that keeps your MacBook awake with the lid closed, on battery, with no external display, using pmset disablesleep, with an auto-off timer, a battery-floor cutoff, and optional agent-idle and no-internet cutoffs.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "license": "https://opensource.org/licenses/MIT",
-  "url": "https://github.com/Aboudjem/Sleepless",
-  "author": { "@type": "Person", "name": "Adam Boudjemaa" }
+  "url": "https://github.com/FarnoodF/Sleepless",
+  "author": { "@type": "Person", "name": "Farnood Faraji" }
 }
 </script>
 <script type="application/ld+json">
@@ -167,7 +167,7 @@
     background:var(--glass); -webkit-backdrop-filter:blur(22px) saturate(150%); backdrop-filter:blur(22px) saturate(150%);
     border:1px solid var(--glass-brd); box-shadow:var(--glass-shadow); display:flex; justify-content:center}
   .shot-plate::after{content:""; position:absolute; inset:0; border-radius:22px; box-shadow:inset 0 1px 0 var(--glass-hi); pointer-events:none}
-  .shot-plate img{max-width:100%; height:auto; border-radius:14px; box-shadow:var(--shadow-lg)}
+  .shot-plate img{max-width:100%; max-height:620px; width:auto; height:auto; border-radius:14px; box-shadow:var(--shadow-lg)}
   .shot-glow{position:absolute; inset:-12% -6% -18% -6%; z-index:-1; border-radius:40px; filter:blur(50px); opacity:.6;
     background:radial-gradient(60% 60% at 50% 40%,rgba(139,92,246,.5),transparent 70%)}
 
@@ -294,7 +294,7 @@
       <a href="#trust">Security</a>
       <a href="#compare">Compare</a>
       <a href="#faq">FAQ</a>
-      <a class="nav-gh" href="https://github.com/Aboudjem/Sleepless"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2A10 10 0 0 0 8.84 21.5c.5.08.66-.22.66-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.16.57.67.48A10 10 0 0 0 12 2Z"/></svg>GitHub</a>
+      <a class="nav-gh" href="https://github.com/FarnoodF/Sleepless"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2A10 10 0 0 0 8.84 21.5c.5.08.66-.22.66-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.16.57.67.48A10 10 0 0 0 12 2Z"/></svg>GitHub</a>
     </div>
   </div>
 </nav>
@@ -304,28 +304,28 @@
     <div class="hero-copy">
       <img class="hero-icon" src="icon.png" alt="Sleepless app icon, a coffee cup">
       <h1>Keep your Mac awake.<br><span class="grad">Lid closed.</span></h1>
-      <p class="lead">Sleepless keeps your MacBook awake with the lid closed, on battery, with no external display. One native menu-bar switch, with an auto-off timer and a battery-floor cutoff so you never drain it flat.</p>
+      <p class="lead">Sleepless keeps your MacBook awake with the lid closed, on battery, with no external display. One native menu-bar switch, with an auto-off timer, a battery-floor cutoff, and agent-aware auto-off that stops when your AI coding agents finish.</p>
       <div class="cta">
-        <a class="btn btn-primary" href="https://github.com/Aboudjem/Sleepless/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Download for macOS</a>
-        <a class="btn btn-ghost" href="https://github.com/Aboudjem/Sleepless">View source on GitHub</a>
+        <a class="btn btn-primary" href="https://github.com/FarnoodF/Sleepless/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Download for macOS</a>
+        <a class="btn btn-ghost" href="https://github.com/FarnoodF/Sleepless">View source on GitHub</a>
       </div>
       <div class="brewbar">
-        <span><span class="dollar">$ </span>brew install --cask aboudjem/tap/sleepless</span>
-        <button class="copy" id="copyBrew" data-cmd="brew install --cask aboudjem/tap/sleepless">Copy</button>
+        <span><span class="dollar">$ </span>brew install --cask farnoodf/tap/sleepless</span>
+        <button class="copy" id="copyBrew" data-cmd="brew install --cask farnoodf/tap/sleepless">Copy</button>
       </div>
       <div class="badges">
-        <a href="https://github.com/Aboudjem/Sleepless/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Aboudjem/Sleepless/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square&color=8B5CF6&labelColor=14122A"></a>
-        <a href="https://github.com/Aboudjem/Sleepless/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Aboudjem/Sleepless?label=release&logo=apple&logoColor=white&style=flat-square&color=8B5CF6&labelColor=14122A"></a>
+        <a href="https://github.com/FarnoodF/Sleepless/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/FarnoodF/Sleepless/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square&color=8B5CF6&labelColor=14122A"></a>
+        <a href="https://github.com/FarnoodF/Sleepless/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/FarnoodF/Sleepless?label=release&logo=apple&logoColor=white&style=flat-square&color=8B5CF6&labelColor=14122A"></a>
         <img alt="Build provenance: attested" src="https://img.shields.io/badge/build_provenance-attested-8B5CF6?style=flat-square&logo=githubactions&logoColor=white&labelColor=14122A">
         <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-D946EF?style=flat-square&labelColor=14122A"></a>
-        <a href="https://github.com/Aboudjem/Sleepless/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Aboudjem/Sleepless?style=flat-square&color=6366F1&labelColor=14122A"></a>
+        <a href="https://github.com/FarnoodF/Sleepless/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/FarnoodF/Sleepless?style=flat-square&color=6366F1&labelColor=14122A"></a>
       </div>
       <p class="meta">macOS 26 · Apple Silicon · MIT · no Dock icon, no daemon, no kext</p>
     </div>
     <div class="hero-visual">
       <div class="shot-glow"></div>
       <div class="shot-plate">
-        <img src="screenshot-popover.png" alt="The Sleepless menu-bar popover: a switch, an auto-off timer, a battery-floor slider, and a launch-at-login toggle">
+        <img src="screenshot-popover.png" alt="The Sleepless menu-bar popover: keep-awake switch on, a 1h auto-off timer counting down, agent-idle auto-off with Claude Code, Codex, and Cursor listed, no-internet and Low Power Mode cutoffs, a battery-floor slider, and a launch-at-login toggle">
       </div>
     </div>
   </div>
@@ -346,9 +346,9 @@
         <div class="ts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18 22 12 16 6"/><path d="M8 6 2 12 8 18"/></svg><div><b>Open source, MIT</b><span>One AppKit file. No daemon, no kernel extension. Read every line.</span></div></div>
       </div>
       <div class="verify">
-        <div class="vh"><span>verify a download</span><button class="copy" data-cmd="shasum -a 256 -c SHA256SUMS&#10;gh attestation verify Sleepless-1.2.0.zip -R Aboudjem/Sleepless">Copy</button></div>
+        <div class="vh"><span>verify a download</span><button class="copy" data-cmd="shasum -a 256 -c SHA256SUMS&#10;gh attestation verify Sleepless-*.zip -R FarnoodF/Sleepless">Copy</button></div>
         <pre><span class="tok-c">shasum</span> -a 256 -c SHA256SUMS
-<span class="tok-c">gh</span> attestation verify Sleepless-1.2.0.zip -R Aboudjem/Sleepless</pre>
+<span class="tok-c">gh</span> attestation verify Sleepless-*.zip -R FarnoodF/Sleepless</pre>
       </div>
     </div>
   </div>
@@ -382,12 +382,20 @@
         <h3>Auto-off timer</h3><p>Keep awake for 1 or 2 hours with a live countdown, then it turns itself off. In memory only.</p>
       </div>
       <div class="spec glass">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9.5" cy="10" r="1"/><circle cx="14.5" cy="10" r="1"/><path d="M9 15h6"/><path d="M12 4V2"/></svg></div>
+        <h3>Agent-aware auto-off</h3><p>Watches local Claude Code, Codex, and Cursor signals, then turns off when no agents are running. Local-only, no UI scraping.</p>
+      </div>
+      <div class="spec glass">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a10 10 0 0 1 14 0"/><path d="M8.5 15.5a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/><path d="m3 3 18 18"/></svg></div>
+        <h3>No-internet auto-off</h3><p>Opt-in cutoff that turns Sleepless off after sustained public-internet reachability loss.</p>
+      </div>
+      <div class="spec glass">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2.5"/><path d="M22 11v2"/><path d="M5.5 10v4"/></svg></div>
         <h3>Battery-floor cutoff</h3><p>Pick a floor from 5 to 50% (default 15%). On battery, it turns itself off before you run flat.</p>
       </div>
       <div class="spec glass">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13c0-5 5-9 16-9 0 9-4 16-9 16Z"/><path d="M4 20c4-5 7-7 11-8"/></svg></div>
-        <h3>Low Power Mode aware</h3><p>On battery, if Low Power Mode is on, Sleepless steps aside and lets the Mac sleep.</p>
+        <h3>Low Power Mode auto-off</h3><p>On battery, if Low Power Mode is on, Sleepless steps aside and lets the Mac sleep. An explicit switch, on by default.</p>
       </div>
       <div class="spec glass">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="m4 3 16 16"/></svg></div>
@@ -406,7 +414,7 @@
   <div class="wrap reveal">
     <p class="eyebrow">How it works</p>
     <h2 class="sec">One setting, flipped safely</h2>
-    <p class="lead">Sleepless toggles <code>pmset disablesleep</code>, which flips the kernel's <code>SleepDisabled</code> flag, then reverts it at your battery floor, in Low Power Mode, or when the timer ends. A reboot also resets it. Because a GUI app can't type a password, the installer adds a tightly scoped sudoers rule that permits exactly two commands and nothing else.</p>
+    <p class="lead">Sleepless toggles <code>pmset disablesleep</code>, which flips the kernel's <code>SleepDisabled</code> flag, then reverts it at your battery floor, in Low Power Mode, when the timer ends, or when an enabled agent-idle or no-internet cutoff fires. A reboot also resets it. Because a GUI app can't type a password, the installer adds a tightly scoped sudoers rule that permits exactly two commands and nothing else.</p>
     <div class="codeblock glass">
       <div class="fname">/etc/sudoers.d/sleepless</div>
       <pre>&lt;you&gt; ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1</pre>
@@ -417,7 +425,7 @@
       <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div><h3>Always reversible</h3><p>A reboot resets the flag, the floor and timer turn it off, and uninstall.sh removes the grant and proves it.</p></div>
       <div class="tile glass"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div><h3>Verifiable downloads</h3><p>Releases ship SHA-256 sums and a Sigstore build-provenance attestation. No Apple account needed to check.</p></div>
     </div>
-    <p class="lead" style="margin-top:24px; font-size:16px">Full threat model and verification: <a href="https://github.com/Aboudjem/Sleepless/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/Aboudjem/Sleepless/blob/main/docs/AUDIT.md">AUDIT.md</a>.</p>
+    <p class="lead" style="margin-top:24px; font-size:16px">Full threat model and verification: <a href="https://github.com/FarnoodF/Sleepless/blob/main/SECURITY.md">SECURITY.md</a> and <a href="https://github.com/FarnoodF/Sleepless/blob/main/docs/AUDIT.md">AUDIT.md</a>.</p>
   </div>
 </section>
 
@@ -451,7 +459,7 @@
     <details><summary>Does pmset disablesleep still work on Apple Silicon (M1/M2/M3)?</summary><p>Yes. <code>pmset -a disablesleep 1</code> sets the kernel's <code>SleepDisabled</code> flag on Apple Silicon, confirmed firsthand on macOS 26.3, which keeps a MacBook awake with the lid closed on battery. Apple does not officially document the setting, so verify it with <code>pmset -g | grep SleepDisabled</code>. Most claims that it stopped working describe <code>caffeinate</code>, a different mechanism.</p></details>
     <details><summary>Is it safe to run a MacBook with the lid closed? Will it overheat or drain the battery?</summary><p>It is safe for light, unattended work like downloads, syncs, or a hotspot. Heavy sustained load with the lid fully closed reduces airflow, so use judgement there. Sleepless turns itself off at the floor you set and in Low Power Mode, and the auto-off timer caps how long it stays on.</p></details>
     <details><summary>Does Sleepless require sudo, a kernel extension, or a background daemon?</summary><p>It needs one tightly scoped <code>sudo</code> grant (two exact <code>pmset</code> commands, nothing else) so a GUI app can flip the setting without a password prompt. There is no kernel extension and no background daemon. The whole app is a single AppKit file.</p></details>
-    <details><summary>Can I run AI agents or long jobs overnight with the lid closed?</summary><p>Yes. Switch Sleepless on, set a battery floor, close the lid, and an agent run, build, render, or training job keeps going. Plug in for an all-nighter, or stay on battery with a floor and timer so it stops itself before the battery runs low.</p></details>
+    <details><summary>Can I run AI agents or long jobs overnight with the lid closed?</summary><p>Yes. Switch Sleepless on, set a battery floor, close the lid, and an agent run, build, render, or training job keeps going. Enable agent-aware auto-off and Sleepless watches local Claude Code, Codex, and Cursor signals, then turns itself off once no agents have been active for a grace period, so the Mac isn't kept awake for nothing. Monitoring is local-only: no UI scraping, no Screen Recording permission, no cloud calls.</p></details>
   </div>
 </section>
 
@@ -462,8 +470,8 @@
       <h2 class="sec">Keep it awake in two minutes</h2>
       <p class="lead">Install with Homebrew, or build it from source and read every line first.</p>
       <div class="row">
-        <div class="brewbar"><span><span class="dollar">$ </span>brew install --cask aboudjem/tap/sleepless</span><button class="copy" data-cmd="brew install --cask aboudjem/tap/sleepless">Copy</button></div>
-        <a class="btn btn-primary" href="https://github.com/Aboudjem/Sleepless/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Download for macOS</a>
+        <div class="brewbar"><span><span class="dollar">$ </span>brew install --cask farnoodf/tap/sleepless</span><button class="copy" data-cmd="brew install --cask farnoodf/tap/sleepless">Copy</button></div>
+        <a class="btn btn-primary" href="https://github.com/FarnoodF/Sleepless/releases/latest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>Download for macOS</a>
       </div>
     </div>
   </div>
@@ -472,13 +480,13 @@
 <footer>
   <div class="wrap">
     <div class="footlinks">
-      <a href="https://github.com/Aboudjem/Sleepless">GitHub</a>
-      <a href="https://github.com/Aboudjem/Sleepless/blob/main/README.md">Docs</a>
-      <a href="https://github.com/Aboudjem/Sleepless/blob/main/SECURITY.md">Security</a>
-      <a href="https://github.com/Aboudjem/Sleepless/blob/main/docs/AUDIT.md">Audit</a>
-      <a href="https://github.com/Aboudjem/Sleepless/releases/latest">Releases</a>
+      <a href="https://github.com/FarnoodF/Sleepless">GitHub</a>
+      <a href="https://github.com/FarnoodF/Sleepless/blob/main/README.md">Docs</a>
+      <a href="https://github.com/FarnoodF/Sleepless/blob/main/SECURITY.md">Security</a>
+      <a href="https://github.com/FarnoodF/Sleepless/blob/main/docs/AUDIT.md">Audit</a>
+      <a href="https://github.com/FarnoodF/Sleepless/releases/latest">Releases</a>
     </div>
-    <p>Open source, MIT licensed. Built by <a href="https://github.com/Aboudjem">Adam Boudjemaa</a>.<br>Sleepless is not affiliated with Apple. macOS is a trademark of Apple Inc.</p>
+    <p>Open source, MIT licensed. Built by <a href="https://github.com/FarnoodF">Farnood Faraji</a>.<br>Sleepless is not affiliated with Apple. macOS is a trademark of Apple Inc.</p>
   </div>
 </footer>
 

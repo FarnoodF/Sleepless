@@ -5,7 +5,7 @@
 # Sleepless' heartbeat helper.
 set -uo pipefail
 
-BUNDLE_ID="com.aboudjem.Sleepless"
+BUNDLE_ID="tech.farnood.sleepless"
 MARKER=".sleepless/agents/heartbeat.sh"
 
 echo "==> Resetting Sleepless agent detector setup"

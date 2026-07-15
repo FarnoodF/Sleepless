@@ -3,7 +3,7 @@
 These channels need **your** accounts and human judgement, so they are NOT posted
 automatically. Each draft is ready to paste. Read each community's current rules before
 posting (they change), lead with the demo, be honest about rough edges, and never beg for
-upvotes. Repo: https://github.com/Aboudjem/Sleepless
+upvotes. Repo: https://github.com/FarnoodF/Sleepless
 
 The automatable awesome-list PRs were opened separately (see the final report for URLs).
 
@@ -74,7 +74,7 @@ fresh launch window.
   > Honest limits: `disablesleep` is undocumented (Apple could change it), and I have only
   > verified it on macOS 26 / Apple Silicon. Feedback and reports from other hardware welcome.
   >
-  > https://github.com/Aboudjem/Sleepless
+  > https://github.com/FarnoodF/Sleepless
 
 - **Do:** answer fast, agree-then-address criticism, keep the source front and center.
 - **Don't:** ask for upvotes, plant booster comments.
@@ -96,11 +96,11 @@ fresh launch window.
   > caffeinate-based apps (KeepingYouAwake, etc.) can't do lid-closed by design; Amphetamine
   > can but is finicky on Apple Silicon. This is the purpose-built, auditable version.
   >
-  > Install: `brew install --cask aboudjem/tap/sleepless`, or build from source.
+  > Install: `brew install --cask farnoodf/tap/sleepless`, or build from source.
   > Ad-hoc signed (not notarized) so build-from-source is the trust path. Verified on
   > macOS 26 / Apple Silicon. Demo + security model in the README.
   >
-  > https://github.com/Aboudjem/Sleepless
+  > https://github.com/FarnoodF/Sleepless
 
 - Post as a detailed self-post with the open-source link (not a bare link). Reply to feedback.
 

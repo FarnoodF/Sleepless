@@ -6,7 +6,7 @@ set -uo pipefail   # not -e: we want to attempt every cleanup step even if one i
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_NAME="Sleepless"
 APP="/Applications/$APP_NAME.app"
-BUNDLE_ID="com.aboudjem.Sleepless"
+BUNDLE_ID="tech.farnood.sleepless"
 SUDOERS_DST="/etc/sudoers.d/sleepless-disablesleep"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
 RESET_AGENT_SETUP="$SCRIPT_DIR/reset-agent-setup.sh"

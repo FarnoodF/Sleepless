@@ -24,10 +24,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Aboudjem/Sleepless/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Aboudjem/Sleepless/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square&color=8B5CF6"></a>
-  <a href="https://github.com/Aboudjem/Sleepless/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Aboudjem/Sleepless?label=release&logo=apple&logoColor=white&style=flat-square&color=8B5CF6"></a>
-  <a href="https://github.com/Aboudjem/Sleepless/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Aboudjem/Sleepless/total?label=downloads&style=flat-square&color=6366F1"></a>
-  <a href="https://github.com/Aboudjem/Sleepless/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Aboudjem/Sleepless?style=flat-square&color=6366F1"></a>
+  <a href="https://github.com/FarnoodF/Sleepless/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/FarnoodF/Sleepless/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square&color=8B5CF6"></a>
+  <a href="https://github.com/FarnoodF/Sleepless/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/FarnoodF/Sleepless?label=release&logo=apple&logoColor=white&style=flat-square&color=8B5CF6"></a>
+  <a href="https://github.com/FarnoodF/Sleepless/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/FarnoodF/Sleepless/total?label=downloads&style=flat-square&color=6366F1"></a>
+  <a href="https://github.com/FarnoodF/Sleepless/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/FarnoodF/Sleepless?style=flat-square&color=6366F1"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-D946EF?style=flat-square"></a>
   <img alt="Platform: macOS 26, Apple Silicon" src="https://img.shields.io/badge/macOS%2026-Apple%20Silicon-8B5CF6?style=flat-square&logo=apple&logoColor=white">
 </p>
@@ -35,11 +35,11 @@
   <img alt="Build provenance: attested (SLSA)" src="https://img.shields.io/badge/build%20provenance-attested-8B5CF6?style=flat-square&logo=githubactions&logoColor=white">
   <img alt="Checksums: SHA-256" src="https://img.shields.io/badge/checksums-SHA--256-6366F1?style=flat-square">
   <img alt="Telemetry: none" src="https://img.shields.io/badge/telemetry-none-D946EF?style=flat-square">
-  <a href="https://github.com/Aboudjem/homebrew-tap"><img alt="Install: Homebrew cask" src="https://img.shields.io/badge/homebrew-cask-8B5CF6?style=flat-square&logo=homebrew&logoColor=white"></a>
+  <a href="https://github.com/FarnoodF/homebrew-tap"><img alt="Install: Homebrew cask" src="https://img.shields.io/badge/homebrew-cask-8B5CF6?style=flat-square&logo=homebrew&logoColor=white"></a>
 </p>
 
 <p align="center">
-  <img alt="Sleepless demo: flip the switch, set an auto-off timer, drag the battery-floor slider" src="assets/demo.gif" width="760">
+  <img alt="Sleepless demo: flip the keep-awake switch, set an auto-off timer, enable agent-idle auto-off" src="assets/demo.gif" width="415">
 </p>
 
 > [!NOTE]
@@ -48,14 +48,14 @@
 ## 安装
 
 ```sh
-brew install --cask aboudjem/tap/sleepless
+brew install --cask farnoodf/tap/sleepless
 /Applications/Sleepless.app/Contents/Resources/grant.sh   # one-time passwordless grant
 ```
 
 | 其他方式 | |
 |---|---|
-| **直接下载** | 获取[最新发布版本](https://github.com/Aboudjem/Sleepless/releases/latest)，解压到 `/Applications`，然后在 **系统设置 → 隐私与安全性 → 仍要打开** 里批准它（它是临时签名 ad-hoc）。 |
-| **从源码构建** | `git clone https://github.com/Aboudjem/Sleepless.git && cd Sleepless && ./install.sh`（不会有 Gatekeeper 提示）。 |
+| **直接下载** | 获取[最新发布版本](https://github.com/FarnoodF/Sleepless/releases/latest)，解压到 `/Applications`，然后在 **系统设置 → 隐私与安全性 → 仍要打开** 里批准它（它是临时签名 ad-hoc）。 |
+| **从源码构建** | `git clone https://github.com/FarnoodF/Sleepless.git && cd Sleepless && ./install.sh`（不会有 Gatekeeper 提示）。 |
 
 然后点击菜单栏里的咖啡杯，拨动开关，合上盖子。
 
@@ -112,7 +112,7 @@ Sleepless 切换 `pmset disablesleep`（内核的 `SleepDisabled` 标志），�
 
 ```sh
 shasum -a 256 -c SHA256SUMS
-gh attestation verify Sleepless-*.zip -R Aboudjem/Sleepless
+gh attestation verify Sleepless-*.zip -R FarnoodF/Sleepless
 ```
 
 完整威胁模型、为何无法上架 App Store，以及审计指南：[SECURITY.md](SECURITY.md) · [docs/AUDIT.md](docs/AUDIT.md)。
@@ -161,7 +161,7 @@ gh attestation verify Sleepless-*.zip -R Aboudjem/Sleepless
 
 ## 许可证
 
-[MIT](LICENSE) © 2026 Adam Boudjemaa。
+[MIT](LICENSE) © 2026 Farnood Faraji。
 
 <p align="center">
   <sub>如果 Sleepless 帮你省去了一趟终端，点个 ⭐ 能帮助更多人发现它。</sub>

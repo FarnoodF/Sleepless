@@ -14,7 +14,7 @@ The app is a small set of Swift files. To satisfy yourself it does what it claim
 
 - [`App.swift`](../App.swift) and [`PowerController.swift`](../PowerController.swift): steady-state privilege is only `sudo -n /usr/bin/pmset -a disablesleep 0/1` (`setDisableSleep`). The one-time native setup generates the sudoers drop-in from binary constants, validates it with `visudo`, and does not run bundled scripts as root.
 - [`AgentMonitor.swift`](../AgentMonitor.swift): agent detection is bounded and local-only: CLI validation, known app bundle IDs, user-owned processes, and optional heartbeat files. No UI scraping, Screen Recording, Accessibility, or cloud-agent polling.
-- [`AppLogger.swift`](../AppLogger.swift): setup diagnostics are written only to a small rotating JSON Lines cache under `~/Library/Caches/com.aboudjem.Sleepless/`.
+- [`AppLogger.swift`](../AppLogger.swift): setup diagnostics are written only to a small rotating JSON Lines cache under `~/Library/Caches/tech.farnood.sleepless/`.
 - [`ConnectivityMonitor.swift`](../ConnectivityMonitor.swift): no-internet auto-off uses macOS network path status plus a lightweight HTTPS reachability probe and does not affect the privileged grant.
 - [`sleepless.sudoers.template`](../sleepless.sudoers.template) and [`grant.sh`](../grant.sh): manual setup path: the passwordless grant permits exactly those two fully-specified commands for the local numeric UID (`#501`-style), has no wildcards, and installs `root:wheel 0440`.
 - [`build.sh`](../build.sh): `swiftc` + a hand-assembled, ad-hoc-signed bundle with hardened runtime enabled. No downloaded blobs, no install-time scripts baked into the binary.
@@ -34,7 +34,7 @@ shasum -a 256 -c SHA256SUMS
 
 # 2. Provenance: this exact zip was built by Sleepless's GitHub Actions release
 #    workflow, from this repo, at the released commit (SLSA Build L2, Sigstore-signed).
-gh attestation verify Sleepless-<version>.zip -R Aboudjem/Sleepless
+gh attestation verify Sleepless-<version>.zip -R FarnoodF/Sleepless
 ```
 
 What each one proves:
@@ -57,7 +57,7 @@ The compile is deterministic for a given toolchain, so you can rebuild and compa
 **unsigned executable** byte for byte:
 
 ```sh
-git clone https://github.com/Aboudjem/Sleepless.git
+git clone https://github.com/FarnoodF/Sleepless.git
 cd Sleepless && git checkout v<version>
 
 # Rebuild the executable with the release's deployment target.

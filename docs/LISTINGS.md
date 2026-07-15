@@ -9,7 +9,7 @@ Nothing here is auto-posted to a human channel. The awesome-list PRs and the meg
 are pure GitHub contributions and were opened from this repo's owner account (see status
 below). Everything that needs a personal account on another site is a draft for you to fire.
 
-Repo: https://github.com/Aboudjem/Sleepless · as of 2026-06.
+Repo: https://github.com/FarnoodF/Sleepless · as of 2026-06.
 
 ## A. GitHub-native (owner self-serve)
 
@@ -34,20 +34,20 @@ category `"menubar"` (lowercase). Descriptions end with a period. One PR.
 {
     "short_description": "Keep your MacBook awake with the lid closed, on battery, with no external display, with a battery-floor auto-off.",
     "categories": ["menubar"],
-    "repo_url": "https://github.com/Aboudjem/Sleepless",
+    "repo_url": "https://github.com/FarnoodF/Sleepless",
     "title": "Sleepless",
     "languages": ["swift"]
 }
 ```
 (Optional `icon_url`: a raw GitHub URL to an icon committed in this repo, e.g.
-`https://raw.githubusercontent.com/Aboudjem/Sleepless/main/assets/Sleepless-1024.png`.)
+`https://raw.githubusercontent.com/FarnoodF/Sleepless/main/assets/Sleepless-1024.png`.)
 
 ### 2. jaywcjlove/awesome-mac
 Edit `README.md` under `### System Related Tools`, alphabetical, insert just above `Sleepr`.
 Mirror into `README-zh.md` / `README-ja.md` / `README-ko.md` (maintainer prefers all locales
 synced). Description ends with a period.
 ```markdown
-* [Sleepless](https://github.com/Aboudjem/Sleepless) - Keep your MacBook awake with the lid closed on battery, with a battery-floor auto-off. [![Open-Source Software][OSS Icon]](https://github.com/Aboudjem/Sleepless) ![Freeware][Freeware Icon]
+* [Sleepless](https://github.com/FarnoodF/Sleepless) - Keep your MacBook awake with the lid closed on battery, with a battery-floor auto-off. [![Open-Source Software][OSS Icon]](https://github.com/FarnoodF/Sleepless) ![Freeware][Freeware Icon]
 ```
 `[OSS Icon]` and `[Freeware Icon]` reference labels are already defined in the file.
 
@@ -57,7 +57,7 @@ between `ShiftIt` and `SlowQuitApps`. Title case, description ends with a period
 template fully (the maintainer closes non-compliant PRs). Native AppKit passes the no-Electron
 rule.
 ```markdown
-- [Sleepless](https://github.com/Aboudjem/Sleepless) - Menu bar utility that keeps your MacBook awake with the lid closed on battery, with a battery-floor auto-off. [![Open-Source Software][OSS Icon]](https://github.com/Aboudjem/Sleepless) ![Freeware][Freeware Icon]
+- [Sleepless](https://github.com/FarnoodF/Sleepless) - Menu bar utility that keeps your MacBook awake with the lid closed on battery, with a battery-floor auto-off. [![Open-Source Software][OSS Icon]](https://github.com/FarnoodF/Sleepless) ![Freeware][Freeware Icon]
 ```
 
 ### 4. jaywcjlove/awesome-swift-macos-apps
@@ -66,7 +66,7 @@ auto star + last-commit badges, no text badges. This list already has near-ident
 (Aquarium, StayAwake, StayUp), so **lead with the battery-floor auto-off differentiator** to
 avoid a redundancy flag.
 ```markdown
-- [Sleepless](https://github.com/Aboudjem/Sleepless) <img align="bottom" height="13" src="https://badgen.net/github/stars/Aboudjem/Sleepless?style=flat&label=" /> <img align="bottom" height="13" src="https://img.shields.io/github/last-commit/Aboudjem/Sleepless?style=flat&label=" /> - Menu bar utility that keeps your MacBook awake with the lid closed on battery, with a battery-floor auto-off.
+- [Sleepless](https://github.com/FarnoodF/Sleepless) <img align="bottom" height="13" src="https://badgen.net/github/stars/FarnoodF/Sleepless?style=flat&label=" /> <img align="bottom" height="13" src="https://img.shields.io/github/last-commit/FarnoodF/Sleepless?style=flat&label=" /> - Menu bar utility that keeps your MacBook awake with the lid closed on battery, with a battery-floor auto-off.
 ```
 
 ## C. Mac-Menubar-Megalist (issue, not PR)
@@ -79,15 +79,15 @@ Mode)" (App Store). No entry named exactly "Sleepless" exists yet.
 - **Title:** `Add app: Sleepless`
 - **Body:**
   > **App Name:** Sleepless
-  > **URL:** https://github.com/Aboudjem/Sleepless
-  > **Website:** https://aboudjem.github.io/Sleepless/
+  > **URL:** https://github.com/FarnoodF/Sleepless
+  > **Website:** https://farnood.tech/
   > **Category:** Utilities → Caffeinators
   > **License:** MIT (free, open source)
   >
   > Paste-ready list line:
-  > `- [Sleepless](https://github.com/Aboudjem/Sleepless) by [Adam Boudjemaa](https://github.com/Aboudjem). Keeps your MacBook awake with the lid closed on battery, with no external display and a battery-floor auto-off. Free, open source.`
+  > `- [Sleepless](https://github.com/FarnoodF/Sleepless) by [Farnood Faraji](https://github.com/FarnoodF). Keeps your MacBook awake with the lid closed on battery, with no external display and a battery-floor auto-off. Free, open source.`
   >
-  > Note: this is "Sleepless" by Aboudjem, distinct from the existing "Sleepless Mac"
+  > Note: this is "Sleepless" by FarnoodF, distinct from the existing "Sleepless Mac"
   > (gsurma) and "Sleep Blocker (Sleepless Mode)" entries already in the Caffeinators list.
 
 ## D. Human-account drafts (fire these yourself; do not automate)
@@ -100,7 +100,7 @@ is not already listed first).
 > **Description:** Open-source macOS menu-bar app that keeps your MacBook awake with the lid
 > closed, on battery, with no external display, using `pmset disablesleep`. Adds an auto-off
 > timer and a battery-floor cutoff so it is safe to forget. Native AppKit, MIT licensed.
-> **Link:** https://github.com/Aboudjem/Sleepless
+> **Link:** https://github.com/FarnoodF/Sleepless
 
 ### Uptodown
 https://en.uptodown.com/developers-console (must be the rights-holder; icon ≥256px; upload the
@@ -127,7 +127,7 @@ Self-post; promotion is welcomed here. Lead with the demo GIF.
 > lid shut for overnight jobs, then forgetting to turn it back off. Sleepless is that command
 > as a one-click menu-bar switch, with an auto-off timer and a battery-floor cutoff so it can't
 > drain the battery. Native AppKit, no daemon, no kext, MIT. Build from source or `brew install
-> --cask aboudjem/tap/sleepless`. Feedback welcome. https://github.com/Aboudjem/Sleepless
+> --cask farnoodf/tap/sleepless`. Feedback welcome. https://github.com/FarnoodF/Sleepless
 
 ### r/swift
 Frame as an engineering write-up (90/10 etiquette: mostly substance, light promo). Read the
@@ -136,7 +136,7 @@ sidebar first.
 > **Body:** A short write-up of the mechanism (`pmset disablesleep` sets the kernel
 > `SleepDisabled` flag, unlike `caffeinate` which can't override lid-close), how a GUI app runs
 > it passwordless via a tightly scoped `/etc/sudoers.d` rule (two exact commands, no wildcards),
-> and the small native Swift/AppKit setup. Source: https://github.com/Aboudjem/Sleepless
+> and the small native Swift/AppKit setup. Source: https://github.com/FarnoodF/Sleepless
 
 ### MacRumors macOS Apps forum
 Evergreen thread, ranks in Google. Post in the macOS Apps forum with the demo + a short,
@@ -153,7 +153,7 @@ Pitch the lid-closed-on-battery angle + the security model, with the demo GIF.
 ## E. Blocked / cannot submit
 
 - **Homebrew core cask**: self-submission needs 90 forks / 90 watchers / 225★ (or 75★ if an
-  unaffiliated person submits). Sleepless is far under, so stay on `aboudjem/tap`. Revisit after
+  unaffiliated person submits). Sleepless is far under, so stay on `farnoodf/tap`. Revisit after
   225★. https://docs.brew.sh/Acceptable-Casks
 - **Changelog Nightly**: algorithmic from GitHub Archive; can't submit, only earned via a
   star-velocity spike. Coordinate with a launch.

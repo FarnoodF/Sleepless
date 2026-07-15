@@ -201,12 +201,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README in 6 languages (English, 简体中文, Español, 日本語, Français, Deutsch).
 - MIT license, security model (`SECURITY.md`), and community-health files.
 
-[Unreleased]: https://github.com/Aboudjem/Sleepless/compare/v1.2.5...HEAD
-[1.2.5]: https://github.com/Aboudjem/Sleepless/compare/v1.2.4...v1.2.5
-[1.2.4]: https://github.com/Aboudjem/Sleepless/compare/v1.2.3...v1.2.4
-[1.2.3]: https://github.com/Aboudjem/Sleepless/compare/v1.2.2...v1.2.3
-[1.2.2]: https://github.com/Aboudjem/Sleepless/compare/v1.2.1...v1.2.2
-[1.2.1]: https://github.com/Aboudjem/Sleepless/compare/v1.2.0...v1.2.1
-[1.2.0]: https://github.com/Aboudjem/Sleepless/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/Aboudjem/Sleepless/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/Aboudjem/Sleepless/releases/tag/v1.0.0
+[Unreleased]: https://github.com/FarnoodF/Sleepless/compare/v1.2.5...HEAD
+[1.2.5]: https://github.com/FarnoodF/Sleepless/compare/v1.2.4...v1.2.5
+[1.2.4]: https://github.com/FarnoodF/Sleepless/compare/v1.2.3...v1.2.4
+[1.2.3]: https://github.com/FarnoodF/Sleepless/compare/v1.2.2...v1.2.3
+[1.2.2]: https://github.com/FarnoodF/Sleepless/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/FarnoodF/Sleepless/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/FarnoodF/Sleepless/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/FarnoodF/Sleepless/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/FarnoodF/Sleepless/releases/tag/v1.0.0

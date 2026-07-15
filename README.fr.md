@@ -22,10 +22,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Aboudjem/Sleepless/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Aboudjem/Sleepless/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square&color=8B5CF6"></a>
-  <a href="https://github.com/Aboudjem/Sleepless/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Aboudjem/Sleepless?label=release&logo=apple&logoColor=white&style=flat-square&color=8B5CF6"></a>
-  <a href="https://github.com/Aboudjem/Sleepless/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Aboudjem/Sleepless/total?label=downloads&style=flat-square&color=6366F1"></a>
-  <a href="https://github.com/Aboudjem/Sleepless/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Aboudjem/Sleepless?style=flat-square&color=6366F1"></a>
+  <a href="https://github.com/FarnoodF/Sleepless/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/FarnoodF/Sleepless/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square&color=8B5CF6"></a>
+  <a href="https://github.com/FarnoodF/Sleepless/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/FarnoodF/Sleepless?label=release&logo=apple&logoColor=white&style=flat-square&color=8B5CF6"></a>
+  <a href="https://github.com/FarnoodF/Sleepless/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/FarnoodF/Sleepless/total?label=downloads&style=flat-square&color=6366F1"></a>
+  <a href="https://github.com/FarnoodF/Sleepless/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/FarnoodF/Sleepless?style=flat-square&color=6366F1"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-D946EF?style=flat-square"></a>
   <img alt="Platform: macOS 26, Apple Silicon" src="https://img.shields.io/badge/macOS%2026-Apple%20Silicon-8B5CF6?style=flat-square&logo=apple&logoColor=white">
 </p>
@@ -33,11 +33,11 @@
   <img alt="Build provenance: attested (SLSA)" src="https://img.shields.io/badge/build%20provenance-attested-8B5CF6?style=flat-square&logo=githubactions&logoColor=white">
   <img alt="Checksums: SHA-256" src="https://img.shields.io/badge/checksums-SHA--256-6366F1?style=flat-square">
   <img alt="Telemetry: none" src="https://img.shields.io/badge/telemetry-none-D946EF?style=flat-square">
-  <a href="https://github.com/Aboudjem/homebrew-tap"><img alt="Install: Homebrew cask" src="https://img.shields.io/badge/homebrew-cask-8B5CF6?style=flat-square&logo=homebrew&logoColor=white"></a>
+  <a href="https://github.com/FarnoodF/homebrew-tap"><img alt="Install: Homebrew cask" src="https://img.shields.io/badge/homebrew-cask-8B5CF6?style=flat-square&logo=homebrew&logoColor=white"></a>
 </p>
 
 <p align="center">
-  <img alt="Sleepless demo: flip the switch, set an auto-off timer, drag the battery-floor slider" src="assets/demo.gif" width="760">
+  <img alt="Sleepless demo: flip the keep-awake switch, set an auto-off timer, enable agent-idle auto-off" src="assets/demo.gif" width="415">
 </p>
 
 > [!NOTE]
@@ -46,14 +46,14 @@
 ## Installation
 
 ```sh
-brew install --cask aboudjem/tap/sleepless
+brew install --cask farnoodf/tap/sleepless
 /Applications/Sleepless.app/Contents/Resources/grant.sh   # one-time passwordless grant
 ```
 
 | Autres méthodes | |
 |---|---|
-| **Téléchargement** | Récupérez la [dernière version](https://github.com/Aboudjem/Sleepless/releases/latest), décompressez vers `/Applications`, puis approuvez-la dans **Réglages Système → Confidentialité et sécurité → Ouvrir quand même** (elle est signée de façon ad-hoc). |
-| **Compiler depuis les sources** | `git clone https://github.com/Aboudjem/Sleepless.git && cd Sleepless && ./install.sh` (sans invite Gatekeeper). |
+| **Téléchargement** | Récupérez la [dernière version](https://github.com/FarnoodF/Sleepless/releases/latest), décompressez vers `/Applications`, puis approuvez-la dans **Réglages Système → Confidentialité et sécurité → Ouvrir quand même** (elle est signée de façon ad-hoc). |
+| **Compiler depuis les sources** | `git clone https://github.com/FarnoodF/Sleepless.git && cd Sleepless && ./install.sh` (sans invite Gatekeeper). |
 
 Cliquez ensuite sur la tasse dans la barre des menus, basculez l'interrupteur et fermez le capot.
 
@@ -110,7 +110,7 @@ Vérifiez un téléchargement, sans compte Apple :
 
 ```sh
 shasum -a 256 -c SHA256SUMS
-gh attestation verify Sleepless-*.zip -R Aboudjem/Sleepless
+gh attestation verify Sleepless-*.zip -R FarnoodF/Sleepless
 ```
 
 Le modèle de menace complet, le verdict sur l'App Store et le guide d'audit : [SECURITY.md](SECURITY.md) · [docs/AUDIT.md](docs/AUDIT.md).
@@ -159,7 +159,7 @@ Les tickets et les PR sont les bienvenus, en particulier les traductions et les 
 
 ## Licence
 
-[MIT](LICENSE) © 2026 Adam Boudjemaa.
+[MIT](LICENSE) © 2026 Farnood Faraji.
 
 <p align="center">
   <sub>Si Sleepless vous a évité un détour par le Terminal, une ⭐ aide d'autres personnes à le trouver.</sub>

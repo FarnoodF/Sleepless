@@ -10,7 +10,7 @@ enum AppLogger {
         let base = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? fileManager.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches", isDirectory: true)
         return base
-            .appendingPathComponent("com.aboudjem.Sleepless", isDirectory: true)
+            .appendingPathComponent("tech.farnood.sleepless", isDirectory: true)
             .appendingPathComponent("setup-diagnostics.jsonl")
     }
 

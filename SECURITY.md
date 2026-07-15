@@ -7,7 +7,7 @@ here is hand-waved; every claim is something you can verify on your own machine.
 ## Reporting a vulnerability
 
 If you find a security issue, please **do not open a public issue**. Email
-**boudjemaa.adam@gmail.com** with details and steps to reproduce. You'll get an
+**me@farnood.tech** with details and steps to reproduce. You'll get an
 acknowledgement within a few days. Coordinated disclosure is appreciated.
 
 Supported version: the latest release on the `main` branch.
@@ -104,7 +104,7 @@ It acts only after a grace period, and the feature is opt-in. These checks do no
 sudoers grant: the only privileged commands remain the two `pmset disablesleep` toggles above.
 
 Agent setup writes local diagnostics to
-`~/Library/Caches/com.aboudjem.Sleepless/setup-diagnostics.jsonl`. The JSON Lines log is local
+`~/Library/Caches/tech.farnood.sleepless/setup-diagnostics.jsonl`. The JSON Lines log is local
 only, rotates at a small size, redacts your home path, and is meant for debugging hook setup
 failures.
 
@@ -145,7 +145,7 @@ project's build, with no Apple account and no shared secret:
 
 ```sh
 shasum -a 256 -c SHA256SUMS                                  # bytes match what was published
-gh attestation verify Sleepless-<version>.zip -R Aboudjem/Sleepless   # built by this repo's release workflow
+gh attestation verify Sleepless-<version>.zip -R FarnoodF/Sleepless   # built by this repo's release workflow
 ```
 
 The full walkthrough (what each check proves, how to reproduce the build, and a VirusTotal

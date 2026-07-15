@@ -37,7 +37,7 @@
 </p>
 
 <p align="center">
-  <img alt="Sleepless demo: flip the switch, set an auto-off timer, drag the battery-floor slider" src="assets/demo.gif" width="760">
+  <img alt="Sleepless demo: flip the keep-awake switch, set an auto-off timer, enable agent-idle auto-off" src="assets/demo.gif" width="415">
 </p>
 
 > [!NOTE]

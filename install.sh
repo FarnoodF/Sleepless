@@ -9,7 +9,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_NAME="Sleepless"
 APP="/Applications/$APP_NAME.app"
-BUNDLE_ID="com.aboudjem.Sleepless"
+BUNDLE_ID="tech.farnood.sleepless"
 SUDOERS_DST="/etc/sudoers.d/sleepless-disablesleep"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$BUNDLE_ID.plist"
 USER_UID="$(id -u)"
