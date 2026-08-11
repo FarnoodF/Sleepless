@@ -21,12 +21,13 @@
 //
 // UI: clicking the menu-bar glyph opens a small native popover with an NSSwitch
 // toggle (the System-Settings control), a state caption, auto-off controls, monitored
-// agent status, a Low-Power-Mode auto-off switch, the battery-floor slider, a
-// Launch-at-login switch, and Quit. The
+// agent status (the agents card is collapsible: while agent auto-off is OFF it shrinks
+// to its header and hides the per-agent status rows), a Low-Power-Mode auto-off switch,
+// the battery-floor slider, a Launch-at-login switch, and Quit. The
 // menu-bar glyph also shows state at a glance.
 //
 // The menu-bar mark uses the existing coffee-cup states: no steam means the Mac sleeps
-// normally, steam means it is being kept awake, and the dot marks battery/auto-off state.
+// normally, and steam means it is being kept awake.
 //
 // Several fail-safe features layer on top, none of which adds a daemon or
 // persists OS state (so "reboot resets it" still holds):
@@ -71,15 +72,13 @@ private let sudoersCommandGrant = "ALL=(root) NOPASSWD: /usr/bin/pmset -a disabl
 // bars and inverts on highlight. State is read from the SILHOUETTE, not colour. The old
 // empty-vs-filled cups looked near-identical at 16 px, so we switch the silhouette dramatically
 // with steam (a hot cup = awake):
-//   OFF   (sleeps normally)        = cup.and.saucer            cup resting on its saucer, NO steam (cold/asleep)
-//   ON    (kept awake, on power)   = cup.and.heat.waves.fill   hot cup with rising steam (awake)
-//   ARMED (kept awake, on battery) = cup.and.heat.waves.fill + a small dot (awake, safety net live)
-// The no-steam -> steam change reads instantly even at 16 px; the armed dot is the only extra
-// mark. All template (monochrome) -- SF Symbols only, no hand-drawn paths.
+//   OFF (sleeps normally) = cup.and.saucer            cup resting on its saucer, NO steam (cold/asleep)
+//   ON  (kept awake)      = cup.and.heat.waves.fill   hot cup with rising steam (awake)
+// The no-steam -> steam change reads instantly even at 16 px. Both images are monochrome
+// SF Symbols, with no extra state marks.
 enum SleepGlyph {
     case off
     case on
-    case armed
 }
 
 private func makeCupGlyph(_ glyph: SleepGlyph) -> NSImage {
@@ -109,15 +108,6 @@ private func makeCupGlyph(_ glyph: SleepGlyph) -> NSImage {
                          y: (canvasSize.height - symbolSize.height) / 2,
                          width: symbolSize.width,
                          height: symbolSize.height))
-
-    if glyph == .armed {
-        // ARMED: full steaming cup + a small filled dot top-right (the "auto-off safety net is live"
-        // mark). Drawn in template black so it tints + inverts with the menu bar exactly like the cup.
-        let d = max(symbolSize.height * 0.26, 4)
-        let dot = NSBezierPath(ovalIn: NSRect(x: canvasSize.width - d, y: canvasSize.height - d, width: d, height: d))
-        NSColor.black.setFill()
-        dot.fill()
-    }
 
     composed.unlockFocus()
     composed.alignmentRect = NSRect(origin: .zero, size: canvasSize)
@@ -182,7 +172,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var timer: Timer?
     private let onGlyph = makeCupGlyph(.on)
     private let offGlyph = makeCupGlyph(.off)
-    private let armedGlyph = makeCupGlyph(.armed)
 
     // Popover UI
     private let popover = NSPopover()
@@ -200,6 +189,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var agentSummaryLabel: NSTextField!
     private var agentEmptyLabel: NSTextField!
     private var agentRows: [AgentID: (name: NSTextField, status: NSTextField, setup: NSButton)] = [:]
+    private var agentsCard: CardView!
+    // Collapsed by default while agent auto-off is OFF: the card shows only its header +
+    // caption and no live agent status. Expanded while ON, or transiently after a failed
+    // turn-on so the per-agent "Set Up" buttons stay reachable.
+    private var agentsExpanded = false
+    private var viewsBelowAgents: [(view: NSView, baseY: CGFloat)] = []
     private var loginSwitch: NSSwitch!
     private var clickMonitor: Any?
     private var batteryFloorPercent = floorDefault
@@ -224,13 +219,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var timerEndDate: Date?
 
     private let popoverWidth: CGFloat = 360
-    private let popoverHeight: CGFloat = 644
+    private let popoverHeight: CGFloat = 644   // full height, with the agents card expanded
+    private let agentsCardExpandedHeight: CGFloat = 140
+    private let agentsCardCollapsedHeight: CGFloat = 58
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         batteryFloorPercent = min(max((UserDefaults.standard.object(forKey: floorKey) as? Int) ?? floorDefault, floorMin), floorMax)
         internetAutoOffEnabled = UserDefaults.standard.bool(forKey: internetAutoOffKey)
         agentAutoOffEnabled = UserDefaults.standard.bool(forKey: agentAutoOffKey)
+        agentsExpanded = agentAutoOffEnabled
         // Unset => true, so existing installs keep the Low Power Mode safety net they already had.
         lowPowerAutoOffEnabled = (UserDefaults.standard.object(forKey: lpmAutoOffKey) as? Bool) ?? true
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -351,9 +349,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         countdownLabel.frame = NSRect(x: ci, y: ci + 26, width: cw, height: 16)
         g2.addSubview(countdownLabel)
 
-        // GROUP 3 — agents (only installed/detectable tools are shown)
-        let g3y = g2y + g2h + 10, g3h: CGFloat = 140
+        // GROUP 3 — agents (only installed/detectable tools are shown). Built at its
+        // EXPANDED height; layoutAgentSection() collapses it (and pulls the groups below
+        // up) while agent auto-off is off.
+        let g3y = g2y + g2h + 10, g3h = agentsCardExpandedHeight
         let g3 = makeCard(NSRect(x: pad, y: g3y, width: contentW, height: g3h))
+        agentsCard = g3
         let agentsLabel = makeLabel("Auto-off when agents are idle", font: .systemFont(ofSize: 13), color: .labelColor)
         agentsLabel.frame = NSRect(x: ci, y: ci, width: cw - swW - 8, height: 22)
         g3.addSubview(agentsLabel)
@@ -458,6 +459,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quit.frame = NSRect(x: W - pad - qs.width, y: g6y + g6h + 10, width: qs.width, height: qs.height)
         root.addSubview(quit)
 
+        // Everything below the agents card shifts up by the collapse delta when that card
+        // is collapsed. Record each view's expanded-layout Y as the reference position.
+        viewsBelowAgents = [g4, glp, g5, g6, quit].map { ($0, $0.frame.origin.y) }
+
         let vc = NSViewController()
         vc.view = root
         return vc
@@ -479,6 +484,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func openPopover() {
+        agentsExpanded = agentAutoOffEnabled   // drop any transient setup-time expansion
         refresh()                              // sync switch/caption to TRUE state before showing
         refreshAgentStatus()
         loginSwitch?.state = loginItemEnabled() ? .on : .off
@@ -690,16 +696,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let healthyCount = self.lastAgentSnapshots.filter { $0.status != .setupNeeded }.count
                 if self.lastAgentSnapshots.isEmpty {
                     self.agentAutoOffEnabled = false
+                    self.agentsExpanded = false
                     sender.state = .off
                     UserDefaults.standard.set(false, forKey: agentAutoOffKey)
                     self.notify("No supported agent tools found.")
                 } else if healthyCount == 0 {
                     self.agentAutoOffEnabled = false
+                    // Stay expanded (switch off) so the per-agent Set Up buttons are reachable.
+                    self.agentsExpanded = true
                     sender.state = .off
                     UserDefaults.standard.set(false, forKey: agentAutoOffKey)
                     self.notify("Set up an agent detector before enabling agent auto-off.")
                 } else {
                     self.agentAutoOffEnabled = true
+                    self.agentsExpanded = true
                     UserDefaults.standard.set(true, forKey: agentAutoOffKey)
                 }
                 self.renderAgentSection()
@@ -707,6 +717,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         agentAutoOffEnabled = false
+        agentsExpanded = false
         UserDefaults.standard.set(false, forKey: agentAutoOffKey)
         noAgentsSince = nil
         renderAgentSection()
@@ -737,7 +748,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let alert = NSAlert()
             alert.alertStyle = .informational
             alert.messageText = "\(id.displayName) detector set up"
-            alert.informativeText = "\(appDisplayName) installed an app-wide hook for \(id.displayName). The row should now show Idle, and it will show Active only while the hook is producing fresh activity heartbeats."
+            alert.informativeText = result.message
             alert.addButton(withTitle: "OK")
             alert.runModal()
         } else {
@@ -784,18 +795,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // Collapse/expand the agents card: shrink it to header + caption while collapsed and
+    // pull every group below it (and the popover itself) up by the same delta. Idempotent,
+    // so it is safe to call on every render tick.
+    private func layoutAgentSection() {
+        guard let card = agentsCard else { return }
+        let h = agentsExpanded ? agentsCardExpandedHeight : agentsCardCollapsedHeight
+        let delta = agentsCardExpandedHeight - h
+        card.frame.size.height = h
+        for (view, baseY) in viewsBelowAgents {
+            view.frame.origin.y = baseY - delta
+        }
+        let newHeight = popoverHeight - delta
+        if popover.contentSize.height != newHeight {
+            popover.contentSize = NSSize(width: popoverWidth, height: newHeight)
+        }
+    }
+
     private func renderAgentSection() {
         agentAutoOffSwitch?.state = agentAutoOffEnabled ? .on : .off
+        layoutAgentSection()
         let activeCount = lastAgentSnapshots.filter { $0.status == .active }.count
         let healthyCount = lastAgentSnapshots.filter { $0.status != .setupNeeded }.count
         if lastAgentSnapshots.isEmpty {
-            agentSummaryLabel?.stringValue = "Auto-off when no agents are running"
-            agentEmptyLabel?.isHidden = false
+            // Collapsed hides the dedicated empty row, so surface the reason in the caption.
+            agentSummaryLabel?.stringValue = agentsExpanded
+                ? "Auto-off when no agents are running"
+                : "No supported agent tools found"
+            agentEmptyLabel?.isHidden = !agentsExpanded
             agentAutoOffSwitch?.isEnabled = false
         } else {
             agentEmptyLabel?.isHidden = true
             agentAutoOffSwitch?.isEnabled = true
-            if activeCount > 0 {
+            if !agentsExpanded {
+                // Collapsed = feature off: show the static description, never live status.
+                agentSummaryLabel?.stringValue = "Auto-off when no agents are running"
+            } else if activeCount > 0 {
                 agentSummaryLabel?.stringValue = "\(activeCount) active agent\(activeCount == 1 ? "" : "s") detected"
             } else if healthyCount == 0 {
                 agentSummaryLabel?.stringValue = "Set up a detector before auto-off can act"
@@ -806,7 +841,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         for id in AgentID.allCases {
             guard let row = agentRows[id] else { continue }
-            guard let snapshot = lastAgentSnapshots.first(where: { $0.id == id }) else {
+            guard let snapshot = lastAgentSnapshots.first(where: { $0.id == id }), agentsExpanded else {
                 row.name.isHidden = true
                 row.status.isHidden = true
                 row.setup.isHidden = true
@@ -852,21 +887,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func applyUI(on: Bool) {
         isOn = on
         if !on { cancelKeepAwakeTimer() }   // going OFF clears any countdown/timer
-        // ARMED = kept awake while actively discharging on battery, so the
-        // auto-off safety net is live. Distinct menu-bar glyph (awake cup + dot).
-        var armed = false
+        var onBatteryAndDischarging = false
         if on {
             let (onBattery, discharging, _) = batteryStatus()
-            armed = onBattery && discharging
+            onBatteryAndDischarging = onBattery && discharging
         }
         if let button = statusItem.button {
-            let newImage = on ? (armed ? armedGlyph : onGlyph) : offGlyph
-                if button.image !== newImage {   // state changed -> swap + pulse
+            let newImage = on ? onGlyph : offGlyph
+            if button.image !== newImage {   // state changed -> swap + pulse
                 button.image = newImage
                 pulseStatusItem()
             }
             button.toolTip = on
-                ? (armed
+                ? (onBatteryAndDischarging
                     ? "\(appDisplayName): on (battery). " + (lowPowerAutoOffEnabled
                         ? "Auto-off at \(batteryFloorPercent)% or in Low Power Mode."
                         : "Auto-off at \(batteryFloorPercent)%.")
@@ -953,6 +986,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard agentAutoOffEnabled else { noAgentsSince = nil; return }
         if lastAgentSnapshots.isEmpty {
             agentAutoOffEnabled = false
+            agentsExpanded = false
             UserDefaults.standard.set(false, forKey: agentAutoOffKey)
             noAgentsSince = nil
             renderAgentSection()

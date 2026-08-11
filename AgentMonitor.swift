@@ -45,7 +45,12 @@ struct AgentSetupResult {
 
 final class AgentMonitor {
     private let heartbeatFreshness: TimeInterval = 120
-    private let heartbeatScriptVersion = "4"
+    // An "active" heartbeat with no "stop" yet stays valid past the freshness window while the
+    // recorded tool process is still alive, so a single long tool call (build, approval prompt)
+    // does not flip a working agent to Idle between hook events. Capped so a crashed tool that
+    // never fired its stop hook cannot hold Active forever.
+    private let activeSessionWindow: TimeInterval = 30 * 60
+    private let heartbeatScriptVersion = "5"
     private let queue = DispatchQueue(label: "Sleepless.AgentMonitor", qos: .utility)
     private let fileManager = FileManager.default
     private var cachedCLIPaths: [String: String] = [:]
@@ -61,8 +66,7 @@ final class AgentMonitor {
     }
 
     private func snapshots() -> [AgentToolSnapshot] {
-        let processes = processList()
-        return AgentID.allCases.compactMap { snapshot(for: $0, processes: processes) }
+        AgentID.allCases.compactMap { snapshot(for: $0) }
     }
 
     func installIntegration(for id: AgentID) -> AgentSetupResult {
@@ -97,7 +101,7 @@ final class AgentMonitor {
             """
             try text.write(to: readme, atomically: true, encoding: .utf8)
             AppLogger.info("agent_setup_success", ["tool": id.rawValue])
-            return AgentSetupResult(ok: true, message: "\(id.displayName) detector set up.", logURL: AppLogger.logURL)
+            return AgentSetupResult(ok: true, message: setupSuccessMessage(for: id), logURL: AppLogger.logURL)
         } catch {
             let nsError = error as NSError
             let message = setupErrorMessage(error)
@@ -112,7 +116,7 @@ final class AgentMonitor {
         }
     }
 
-    private func snapshot(for id: AgentID, processes: [ProcessSnapshot]) -> AgentToolSnapshot? {
+    private func snapshot(for id: AgentID) -> AgentToolSnapshot? {
         switch id {
         case .claude:
             guard let path = resolveCLI(command: "claude", extraPaths: [
@@ -131,17 +135,18 @@ final class AgentMonitor {
 
         case .cursor:
             guard cursorInstalled() else { return nil }
-            if heartbeatIsFresh(for: id) || cursorAgentProcessMatches(processes) {
-                return AgentToolSnapshot(id: id, displayName: id.displayName, status: .active, detail: "Local agent signal")
-            }
-            let status: AgentStatus = integrationConfigured(for: id) ? .idle : .setupNeeded
+            let status = statusFromIntegration(for: id)
             return AgentToolSnapshot(id: id, displayName: id.displayName, status: status, detail: "Cursor app installed")
         }
     }
 
     private func statusFromIntegration(for id: AgentID) -> AgentStatus {
         guard integrationConfigured(for: id) else { return .setupNeeded }
-        return heartbeatIsFresh(for: id) ? .active : .idle
+        // Codex silently skips hooks the user has not trusted via its /hooks command, so a
+        // structurally correct hooks.json alone proves nothing. Stay in "Setup needed" until the
+        // first heartbeat proves Codex actually runs our hook.
+        if id == .codex, heartbeatRecord(for: .codex) == nil { return .setupNeeded }
+        return heartbeatIndicatesActivity(for: id) ? .active : .idle
     }
 
     private func resolveCLI(command: String, extraPaths: [String]) -> String? {
@@ -185,28 +190,25 @@ final class AgentMonitor {
         return installed
     }
 
-    private func cursorAgentProcessMatches(_ processes: [ProcessSnapshot]) -> Bool {
-        processes.contains { proc in
-            guard proc.uid == getuid() else { return false }
-            return proc.command == "cursor-agent"
-                || proc.command == "cursor-agent-worker"
-        }
+    private func heartbeatIndicatesActivity(for id: AgentID) -> Bool {
+        guard let record = heartbeatRecord(for: id), record.state == "active" else { return false }
+        let age = Date().timeIntervalSince1970 - record.timestamp
+        if age <= heartbeatFreshness { return true }
+        // Past the freshness window: still active while the recorded tool process runs and no
+        // stop event arrived, so long tool calls and approval waits are not misread as Idle.
+        guard age <= activeSessionWindow, let pid = record.toolPID else { return false }
+        return processAlive(pid, matches: id)
     }
 
-    private func heartbeatIsFresh(for id: AgentID) -> Bool {
-        let url = heartbeatURL(for: id)
-        guard let attrs = try? fileManager.attributesOfItem(atPath: url.path),
-              let modified = attrs[.modificationDate] as? Date else {
-            return false
-        }
-        guard heartbeatFile(at: url, belongsTo: id) else { return false }
-        return Date().timeIntervalSince(modified) <= heartbeatFreshness
-    }
-
-    private func heartbeatFile(at url: URL, belongsTo id: AgentID) -> Bool {
-        guard let data = try? Data(contentsOf: url),
+    // A heartbeat only counts when the tool's own process appears in the chain that produced it.
+    // Cursor's agent harness also executes Claude-compatible hooks from ~/.claude/settings.json,
+    // producing claude heartbeats whose chain contains only Cursor processes; requiring the tool
+    // binary rejects those without rejecting genuine claude/codex sessions running inside
+    // Cursor's integrated terminal (whose chain does include the tool binary).
+    private func heartbeatRecord(for id: AgentID) -> HeartbeatRecord? {
+        guard let data = try? Data(contentsOf: heartbeatURL(for: id)),
               let text = String(data: data, encoding: .utf8) else {
-            return false
+            return nil
         }
         var fields: [String: String] = [:]
         text.split(whereSeparator: \.isNewline).forEach { line in
@@ -216,24 +218,36 @@ final class AgentMonitor {
         }
         guard fields["version"] == heartbeatScriptVersion,
               fields["tool"] == id.rawValue,
-              fields["state"] == "active",
+              let state = fields["state"],
               let timestamp = fields["time"].flatMap(TimeInterval.init) else {
-            return false
+            return nil
         }
-        if id != .cursor, heartbeatOriginIsCursor(fields["process_chain"] ?? "") {
-            return false
-        }
-        return Date().timeIntervalSince1970 - timestamp <= heartbeatFreshness
+        guard processChain(fields["process_chain"] ?? "", contains: id) else { return nil }
+        return HeartbeatRecord(state: state, timestamp: timestamp, toolPID: fields["tool_pid"].flatMap(Int32.init))
     }
 
-    private func heartbeatOriginIsCursor(_ processChain: String) -> Bool {
-        processChain
-            .lowercased()
-            .split(separator: "|")
-            .contains { part in
-                let name = part.trimmingCharacters(in: .whitespacesAndNewlines)
-                return name == "cursor" || name.hasPrefix("cursor ") || name.contains("/cursor")
-            }
+    private func processChain(_ chain: String, contains id: AgentID) -> Bool {
+        chain.split(separator: "|").contains { part in
+            processName(String(part).trimmingCharacters(in: .whitespacesAndNewlines), matches: id)
+        }
+    }
+
+    private func processName(_ comm: String, matches id: AgentID) -> Bool {
+        let base = URL(fileURLWithPath: comm).lastPathComponent.lowercased()
+        switch id {
+        case .cursor:
+            // Matches the Cursor app, its helpers ("Cursor Helper (Plugin): ..."), and cursor-agent.
+            return base.contains("cursor")
+        case .claude, .codex:
+            return base == id.commandName
+        }
+    }
+
+    private func processAlive(_ pid: pid_t, matches id: AgentID) -> Bool {
+        let out = ShellRunner.capture("/bin/ps", ["-o", "comm=", "-p", String(pid)], timeout: 2)
+        let comm = out.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !comm.isEmpty else { return false }
+        return processName(comm, matches: id)
     }
 
     private func integrationConfigured(for id: AgentID) -> Bool {
@@ -488,19 +502,6 @@ final class AgentMonitor {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
-    private func processList() -> [ProcessSnapshot] {
-        let out = ShellRunner.capture("/bin/ps", ["-axo", "pid=,uid=,comm="], timeout: 2)
-        return out.split(separator: "\n").compactMap { line in
-            let parts = line.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
-            guard parts.count == 3, let pid = Int32(parts[0]), let uid = uid_t(String(parts[1])) else { return nil }
-            return ProcessSnapshot(
-                pid: pid,
-                uid: uid,
-                executablePath: String(parts[2])
-            )
-        }
-    }
-
     private var home: String { homeURL.path }
     private var homeURL: URL { fileManager.homeDirectoryForCurrentUser }
     private var heartbeatDirectory: URL { homeURL.appendingPathComponent(".sleepless/agents", isDirectory: true) }
@@ -540,10 +541,28 @@ final class AgentMonitor {
         dir="$HOME/.sleepless/agents"
         mkdir -p "$dir"
         process_chain=""
+        tool_pid=""
         pid="$$"
         while [ -n "$pid" ] && [ "$pid" != "0" ]; do
           comm="$(/bin/ps -o comm= -p "$pid" 2>/dev/null || true)"
-          [ -n "$comm" ] && process_chain="${process_chain:+$process_chain|}$comm"
+          if [ -n "$comm" ]; then
+            process_chain="${process_chain:+$process_chain|}$comm"
+            if [ -z "$tool_pid" ]; then
+              base="${comm:t:l}"
+              case "$tool" in
+                cursor)
+                  case "$base" in
+                    *cursor*) tool_pid="$pid" ;;
+                  esac
+                  ;;
+                *)
+                  if [ "$base" = "$tool" ]; then
+                    tool_pid="$pid"
+                  fi
+                  ;;
+              esac
+            fi
+          fi
           pid="$(/bin/ps -o ppid= -p "$pid" 2>/dev/null | /usr/bin/tr -d ' ' || true)"
         done
         write_heartbeat() {
@@ -553,6 +572,7 @@ final class AgentMonitor {
             /bin/echo "tool=$tool"
             /bin/echo "state=$state"
             /bin/echo "time=$(/bin/date +%s)"
+            /bin/echo "tool_pid=$tool_pid"
             /bin/echo "process_chain=$process_chain"
           } > "$tmp"
           /bin/mv "$tmp" "$dir/$tool.heartbeat"
@@ -562,6 +582,15 @@ final class AgentMonitor {
           *) state="active"; write_heartbeat ;;
         esac
         """
+    }
+
+    private func setupSuccessMessage(for id: AgentID) -> String {
+        switch id {
+        case .codex:
+            return "Codex detector set up. Codex does not run hooks you have not trusted: open Codex, run /hooks, and trust the Sleepless heartbeat hooks. The row shows Setup needed until the first heartbeat arrives, then Idle/Active."
+        case .claude, .cursor:
+            return "\(id.displayName) detector set up. The row shows Idle now and turns Active while the hook reports fresh agent activity."
+        }
     }
 
     private func setupErrorMessage(_ error: Error) -> String {
@@ -577,14 +606,10 @@ final class AgentMonitor {
     }
 }
 
-private struct ProcessSnapshot {
-    let pid: Int32
-    let uid: uid_t
-    let executablePath: String
-
-    var command: String {
-        URL(fileURLWithPath: executablePath).lastPathComponent
-    }
+private struct HeartbeatRecord {
+    let state: String
+    let timestamp: TimeInterval
+    let toolPID: pid_t?
 }
 
 private struct HookEvent {
